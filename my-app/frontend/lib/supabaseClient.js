@@ -20,15 +20,21 @@ const getStorage = () => {
   }
 };
 
-export const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-  {
-    auth: {
-      storage: getStorage(),
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-    },
-  }
-);
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+/** Client is null until both URL and anon key are set in `.env`. */
+export const supabase =
+  typeof supabaseUrl === 'string' &&
+  supabaseUrl.trim().length > 0 &&
+  typeof supabaseAnonKey === 'string' &&
+  supabaseAnonKey.trim().length > 0
+    ? createClient(supabaseUrl.trim(), supabaseAnonKey.trim(), {
+        auth: {
+          storage: getStorage(),
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false,
+        },
+      })
+    : null;
