@@ -18,21 +18,29 @@ export default function RootLayout() {
     Gafata: Gafata_400Regular,
   });
 
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    const client = supabase;
+    if (!client) {
+      console.warn(
+        'Supabase not configured: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to my-app/frontend/.env, then restart Expo.'
+      );
+      return;
+    }
+    const testConnection = async () => {
+      const { data, error } = await client.from('users').select('*').limit(1);
+      if (error) {
+        console.log('❌ Supabase error:', error.message);
+      } else {
+        console.log('✅ Supabase connected! Data:', data);
+      }
+    };
+    testConnection();
+  }, [fontsLoaded]);
+
   if (!fontsLoaded) {
     return null;
   }
-
-  useEffect(() => {
-    const testConnection = async () => {
-      const { data, error } = await supabase.from('users').select('*').limit(1)
-      if (error) {
-        console.log('❌ Supabase error:', error.message)
-      } else {
-        console.log('✅ Supabase connected! Data:', data)
-      }
-    }
-    testConnection()
-  }, [])
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

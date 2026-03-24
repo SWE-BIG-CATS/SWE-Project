@@ -14,7 +14,7 @@ export default function LoginScreen() {
     }
 
     setError('');
-    router.replace('/home');
+    router.replace('./home');
   };
 
   return (
