@@ -1,15 +1,23 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import {homeStyles} from './homeStyles';
+import {homeStyles} from '../../constants/homeStyles';
 //import { Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import  {useUser} from '@/context/UserContext';
 export default function HomeScreen() {
+  const { user } = useUser();
   const handleLogout = () => {
     router.replace('/');
   };
   const [search, setSearch] = useState('');
 
+    let user_text = ""
+      if (user !== null && user!== undefined){
+        user_text = user.username
+      }else{
+        user_text = "<User_Placeholder>"
+      }
 
   return (
     <View style={homeStyles.container}>
@@ -37,8 +45,10 @@ export default function HomeScreen() {
             </Pressable>
           </View>
       </View>
+     
+
       
-      <Text style = {homeStyles.welcome}>Welcome back, !</Text>
+      <Text style = {homeStyles.welcome}>Welcome back, {user_text}!</Text>
 
 
       <Text style={homeStyles.subtitle}>You are logged in.</Text>
