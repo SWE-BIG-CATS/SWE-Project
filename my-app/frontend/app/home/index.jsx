@@ -19,7 +19,10 @@ const MOCK_NOTIFICATIONS = [
 
 export default function HomeScreen() {
   const { user } = useUser();
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     router.replace('/');
   };
 
@@ -29,7 +32,7 @@ export default function HomeScreen() {
 
     let user_text = ""
       if (user !== null && user!== undefined){
-        user_text = user.username
+        user_text = user.user_metadata?.display_name || user.email || '<User_Placeholder>'
       }else{
         user_text = "<User_Placeholder>"
       }

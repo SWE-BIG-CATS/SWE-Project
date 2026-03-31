@@ -1,4 +1,6 @@
 import { Tabs } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -53,9 +55,37 @@ export default function HomeTabsLayout() {
           href: null,
         }}
       />
-    </Tabs>
-
-    
-    
+      <Pressable style={styles.postButton} onPress={() => router.push('/post')}>
+        <Text style={styles.postButtonText}>Post</Text>
+      </Pressable>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  postButton: {
+    position: 'absolute',
+    right: 18,
+    bottom: 90,
+    minWidth: 90,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#111827',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  postButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+});
