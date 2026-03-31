@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
+import PicnicBackground from '../components/PicnicBackground';
  
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,38 +47,53 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
-      <Text style={styles.subtitle}>Sign up with your email.</Text>
+    <View style={{ flex: 1 }}>
+      <PicnicBackground />
+      <View style={styles.container}>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Sign up with your email.</Text>
 
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        placeholderTextColor="#888"
-        style={styles.input}
-      />
-
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-        secureTextEntry
-        placeholderTextColor="#888"
-        style={styles.input}
-      />
-
-      {!!error && <Text style={styles.error}>{error}</Text>}
-
-      <Pressable style={styles.button} onPress={handleRegister} disabled={isLoading}>
-        <Text style={styles.buttonText}>{isLoading ? 'Creating...' : 'Create Account'}</Text>
-      </Pressable>
-
-      <Pressable style={styles.button} onPress={() => router.back()}>
-        <Text style={styles.buttonText}>Back</Text>
-      </Pressable>
+        <TextInput
+          value={firstName}
+          onChangeText={setFirstName}
+          placeholder="First Name"
+          autoCapitalize="words"
+          placeholderTextColor="#888"
+          style={styles.input}
+        />
+        <TextInput
+          value={lastName}
+          onChangeText={setLastName}
+          placeholder="Last Name"
+          autoCapitalize="words"
+          placeholderTextColor="#888"
+          style={styles.input}
+        />
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Email"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholderTextColor="#888"
+          style={styles.input}
+        />
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Password"
+          secureTextEntry
+          placeholderTextColor="#888"
+          style={styles.input}
+        />
+        {!!error && <Text style={styles.error}>{error}</Text>}
+        <Pressable style={styles.button} onPress={handleRegister} disabled={isLoading}>
+          <Text style={styles.buttonText}>{isLoading ? 'Creating...' : 'Create Account'}</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={() => router.replace('/')}>
+          <Text style={styles.buttonText}>Back</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -85,16 +103,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '700',
+    fontFamily: 'Gafata',
+    fontSize: 52,
     color: '#1a1a1a',
-    marginBottom: 8,
+    letterSpacing: 3,
+    marginBottom: 6,
   },
   subtitle: {
+    fontFamily: 'Gaegu',
     fontSize: 16,
     color: '#6B7280',
     marginBottom: 16,
@@ -108,28 +127,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
     marginBottom: 10,
+    fontFamily: 'Gaegu',
     fontSize: 17,
     color: '#333',
   },
   error: {
+    fontFamily: 'Gaegu',
     color: '#DC2626',
     marginBottom: 12,
     fontSize: 14,
     alignSelf: 'flex-start',
   },
   button: {
-    minWidth: 180,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#2563EB',
+    width: '58%',
+    height: 48,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#348fd9',
+    backgroundColor: '#9cdeff',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
     marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  buttonPressed: {
+    backgroundColor: '#f5f5f5',
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Gaegu',
+    fontSize: 22,
+    color: '#333',
   },
 });
