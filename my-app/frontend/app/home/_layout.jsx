@@ -42,6 +42,10 @@ export default function HomeTabsLayout() {
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
           }}
         />
+<<<<<<< Updated upstream
+=======
+        <Tabs.Screen name="projects" options={{ href: null, }} />
+>>>>>>> Stashed changes
       </Tabs>
 
       <Pressable style={styles.postButton} onPress={() => router.push('/post')}>
