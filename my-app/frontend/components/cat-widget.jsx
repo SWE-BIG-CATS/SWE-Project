@@ -1,14 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Image, Pressable, View, StyleSheet } from 'react-native';
 
-export default function CatWindow({ mood = 'happy' }) {
-  const bounce = useRef(new Animated.Value(0)).current;
+
   const CAT_IMAGES = {
     happy:   require('../assets/images/cat-happy.png'),
     sad:     require('../assets/images/cat-sad.png'),
     playful: require('../assets/images/cat-playful.png'),
     default: require('../assets/images/cat-default.png'),
   };
+  
+export default function CatWindow({ mood = 'happy' }) {
+  const bounce = useRef(new Animated.Value(0)).current;
+
+    
 
   useEffect(() => {
     bounce.stopAnimation();
@@ -66,7 +70,7 @@ export default function CatWindow({ mood = 'happy' }) {
 
         {/* ── Layer 3: cat ── */}
        <Animated.Image
-        source={catImage}  
+        source={CAT_IMAGES[mood]}
         style={[styles.layer, styles.cat, { transform: [{ translateY: bounce }] }]}
         resizeMode="contain"
       />

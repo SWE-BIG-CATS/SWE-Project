@@ -13,6 +13,7 @@ export default function HomeTabsLayout() {
   const theme = Colors[colorScheme ?? 'light'];
 
   return (
+    <View style={styles.container}>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.tint,
@@ -55,6 +56,7 @@ export default function HomeTabsLayout() {
           href: null,
         }}
       />
+    </Tabs>
       <Pressable style={styles.postButton} onPress={() => router.push('/post')}>
         <Text style={styles.postButtonText}>Post</Text>
       </Pressable>
