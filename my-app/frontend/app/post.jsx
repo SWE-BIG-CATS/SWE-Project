@@ -29,6 +29,44 @@ const CRAFT_TYPES = ['test','knitting', 'crochet', 'embroidery', 'weaving', 'sew
 const PINK = '#c49a9a';
 const CREAM = '#f5f0e8';
 const DARK = '#5c3d3d';
+const STORAGE_BUCKET_CANDIDATES = [
+  process.env.EXPO_PUBLIC_SUPABASE_POSTS_BUCKET,
+  'images',
+  'post-media',
+].filter(Boolean);
+
+const fileExtensionFromUri = (uri) => {
+  const clean = String(uri || '').split('?')[0].split('#')[0];
+  const maybeExt = clean.includes('.') ? clean.slice(clean.lastIndexOf('.') + 1).toLowerCase() : '';
+  return maybeExt && maybeExt.length <= 5 ? maybeExt : 'jpg';
+};
+
+async function uploadPostImageToStorage({ uri, userId }) {
+  if (!supabase || !uri) return uri;
+
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const ext = fileExtensionFromUri(uri);
+  const filePath = `${userId || 'anonymous'}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+
+  let lastError = null;
+  for (const bucket of STORAGE_BUCKET_CANDIDATES) {
+    const { error } = await supabase.storage.from(bucket).upload(filePath, blob, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: blob.type || `image/${ext}`,
+    });
+
+    if (!error) {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+      if (data?.publicUrl) return data.publicUrl;
+    } else {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Image upload failed.');
+}
 
 export default function CreatePostScreen() {
   const {user} = useUser();
@@ -80,50 +118,53 @@ export default function CreatePostScreen() {
       return;
     }
 
-    console.log('share pressed'); //quick share debug
-    //alert('share pressed');
-    console.log(user.user_id)
+    try {
+      console.log('share pressed'); //quick share debug
 
+      const content = JSON.stringify({
+        title: title.trim(),
+        caption: caption.trim(),
+        craftType: craftType,
+        tags,
+      });
 
-    //inserting new content here
-    const content = JSON.stringify({
-      title: title.trim(),
-      caption: caption.trim(),
-      craftType: craftType,
-      tags,
-    });
-
-    //inserting into post here
-    const { data: post, error: postError } = await supabase
-        .from('posts')
-        .insert([
-          {
-            creator_id: user.id,
-            content,
-          },
-        ])
-        .select()
-        .single();
-
-    if (postError) throw postError;
-
-    if (selectedImageUri) {
-      const { error: mediaError } = await supabase
-          .from('post_media')
+      const { data: post, error: postError } = await supabase
+          .from('posts')
           .insert([
             {
-              post_id: post.post_id,
-              media_url: selectedImageUri,
-              media_type: 'image',
-              order: 0,
+              creator_id: user.id,
+              content,
             },
-          ]);
+          ])
+          .select()
+          .single();
 
-      if (mediaError) throw mediaError;
+      if (postError) throw postError;
+
+      if (selectedImageUri) {
+        const uploadedUrl = await uploadPostImageToStorage({
+          uri: selectedImageUri,
+          userId: user?.id,
+        });
+        const { error: mediaError } = await supabase
+            .from('post_media')
+            .insert([
+              {
+                post_id: post.post_id,
+                media_url: uploadedUrl,
+                media_type: 'image',
+                order: 0,
+              },
+            ]);
+
+        if (mediaError) throw mediaError;
+      }
+
+      Alert.alert('Posted!');
+      router.back();
+    } catch (error) {
+      Alert.alert('Unable to post', error?.message || 'Please try again.');
     }
-
-    alert('Post shared!');
-    router.back();
 
   };
 
