@@ -21,6 +21,8 @@ import {UserProvider} from '@/context/UserContext';
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  const isGroupChatsRoute = pathname?.startsWith('/home/group-chats');
+  const showPostButton = pathname !== '/' && pathname !== '/post' && !isGroupChatsRoute;
   const [fontsLoaded] = useFonts({
     Gaegu: Gaegu_400Regular,
     'Gaegu-Bold': Gaegu_700Bold,
@@ -63,7 +65,7 @@ export default function RootLayout() {
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
           </Stack>
 
-          {pathname !== '/' && pathname !== '/post' && (
+          {showPostButton && (
             <Pressable
               style={({ pressed }) => [styles.postButton, pressed && styles.postButtonPressed]}
               onPress={() => router.push('/post')}>
