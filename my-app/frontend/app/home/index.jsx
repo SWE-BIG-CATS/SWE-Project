@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import {homeStyles} from '../../constants/homeStyles';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {useUser} from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NotificationModal from '@/components/notificationScreen';
 import StreakModal from '@/components/streakModal';
 import CatWindow from '@/components/cat-widget';
@@ -30,6 +31,7 @@ const MOCK_POSTS = [
 ];
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useUser();
   const handleLogout = async () => {
     if (supabase) {
@@ -50,7 +52,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={homeStyles.container}>
+    <View style={[homeStyles.container, { paddingTop: insets.top + 12 }]}>
       <View style={homeStyles.header}>
         <Text style={homeStyles.title}>My Craft</Text>
         <View style={homeStyles.headerRight}>
@@ -77,22 +79,28 @@ export default function HomeScreen() {
 
       <Text style={homeStyles.welcome}>Welcome back, {user_text}!</Text>
 
-      <Pressable style={homeStyles.homebuttons} onPress={() => setNotifVisible(true)}>
-        <Ionicons name="notifications-outline" size={16} color="#888" />
-        <Text style={homeStyles.notificationsText}>notifications</Text>
-      </Pressable>
+      <View style={homeStyles.quickActionsRow}>
+        <View style={homeStyles.leftActionsColumn}>
+          <Pressable style={homeStyles.homebuttons} onPress={() => setNotifVisible(true)}>
+            <Ionicons name="notifications-outline" size={16} color="#888" />
+            <Text style={homeStyles.notificationsText}>notifications</Text>
+          </Pressable>
 
-      <Pressable style={homeStyles.homebuttons} onPress={() => setStreakVisible(true)}>
-        <Ionicons name="flame-outline" size={16} color="#888" />
-        <Text style={homeStyles.streaksText}>craft streaks</Text>
-      </Pressable>
+          <Pressable style={homeStyles.homebuttons} onPress={() => setStreakVisible(true)}>
+            <Ionicons name="flame-outline" size={16} color="#888" />
+            <Text style={homeStyles.streaksText}>craft streaks</Text>
+          </Pressable>
 
-      <Pressable style={homeStyles.homebuttons} onPress={() => router.push('/home/projects')}>
-        <Ionicons name="folder-open-outline" size={16} color="#888" />
-        <Text style={homeStyles.projectsText}>my projects</Text>
-      </Pressable>
+          <Pressable style={homeStyles.homebuttons} onPress={() => router.push('/home/projects')}>
+            <Ionicons name="folder-open-outline" size={16} color="#888" />
+            <Text style={homeStyles.projectsText}>my projects</Text>
+          </Pressable>
+        </View>
 
-      <CatWindow mood="happy" />
+        <View style={homeStyles.catColumn}>
+          <CatWindow mood="happy" />
+        </View>
+      </View>
       {/* <CatWindow mood="sad" /> */}
       {/* <CatWindow mood="playful" /> */}
       {/* <CatWindow mood="default" /> */}

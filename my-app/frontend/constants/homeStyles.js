@@ -85,5 +85,21 @@ export const homeStyles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     alignSelf: 'flex-start',
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  leftActionsColumn: {
+    flex: 1,
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingRight: 12,
+  },
+  catColumn: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
   }
 });
