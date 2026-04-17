@@ -3,14 +3,16 @@ import { StyleSheet } from 'react-native';
 export const homeStyles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: 'column',
-    backgroundColor: '#FFFFFF',
-    //justifyContent: 'center',
-    //alignItems: 'left',
- //   alignItems: 'flex-stretch',
-    alignItems: 'stretch',
+    backgroundColor: '#f2e4e4',
+  },
+  backgroundLayer: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  foreground: {
+    flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 24
   },
   header:{
     flexDirection: 'row',
@@ -41,19 +43,22 @@ export const homeStyles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: 10,
     paddingHorizontal: 10,
+    paddingVertical: 0,
    // paddingVertical: 7,
  //   gap: 10,
   //  overflow: 'hidden',
-    height: 36,
+    height: 40,
   },
   searchInput: {
     flex: 1,
-   // flexDirection: 'column',
-    fontSize: 14,
-    color: '#111',
-    padding:15,
+    fontSize: 15,
+    color: '#111111',
+    paddingHorizontal: 8,
+    paddingVertical: 0,
     //paddingHorizontal: 3,
     // paddingVertical: 1,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     outlineStyle: 'none',
   },
   subtitle: {
@@ -76,6 +81,14 @@ export const homeStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  logoutIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   homebuttons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -85,5 +98,21 @@ export const homeStyles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     alignSelf: 'flex-start',
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  leftActionsColumn: {
+    flex: 1,
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingRight: 12,
+  },
+  catColumn: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
   }
 });
