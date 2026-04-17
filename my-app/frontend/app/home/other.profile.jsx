@@ -22,6 +22,7 @@ import {
   unfollowUser,
   getUserProfile,
   getDisplayName,
+  getUserName,
 } from '../../FE-services/follows.service';
 
 export default function OtherProfileScreen() {
@@ -50,6 +51,9 @@ export default function OtherProfileScreen() {
   const [followingModalVisible, setFollowingModalVisible] = useState(false);
 
   const isOwnProfile = currentUserId && viewedUserId && currentUserId === viewedUserId;
+
+  const userName = getUserName(profile);
+  const displayName = getDisplayName(profile);
 
   async function loadScreen() {
     if (!viewedUserId) return;
@@ -225,8 +229,6 @@ export default function OtherProfileScreen() {
         </View>
     );
   }
-
-  const displayName = getDisplayName(profile);
 
   if (loading) {
     return (
