@@ -10,7 +10,6 @@ import NotificationModal from '@/components/notificationScreen';
 import StreakModal from '@/components/streakModal';
 import CatWindow from '@/components/cat-widget';
 import PostCard from '@/components/post-card';
-import BottomNavBar from '@/components/BottomNavBar';
 
 const MOCK_NOTIFICATIONS = [
   { id: '1', message: 'Your project "Oak Table" was saved.', time: '2m ago' },
@@ -76,8 +75,8 @@ export default function HomeScreen() {
                 </Pressable>
               )}
             </View>
-            <Pressable style={homeStyles.button} onPress={handleLogout}>
-              <Text style={homeStyles.buttonText}>Log Out</Text>
+            <Pressable style={homeStyles.logoutIconButton} onPress={handleLogout} hitSlop={8}>
+              <Ionicons name="log-out-outline" size={18} color="#FFFFFF" />
             </Pressable>
           </View>
         </View>
@@ -125,7 +124,6 @@ export default function HomeScreen() {
         streak={5}
       />
 
-      <BottomNavBar active="Home" />
     </View>
   );
 }
