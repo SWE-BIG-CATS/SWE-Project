@@ -25,7 +25,9 @@ const DARK = '#5c3d3d';
 export default function GroupChatDetailsScreen() {
   const { chatId } = useLocalSearchParams();
   const [messageText, setMessageText] = useState('');
+  const [hasPendingImage, setHasPendingImage] = useState(false);
   const [chat, setChat] = useState(null);
+  const [sentMessages, setSentMessages] = useState([]);
 
   useEffect(() => {
     let mounted = true;
@@ -36,6 +38,7 @@ export default function GroupChatDetailsScreen() {
         return;
       }
       setChat(data);
+      setSentMessages(data.messages ?? []);
     });
     return () => {
       mounted = false;
@@ -44,15 +47,25 @@ export default function GroupChatDetailsScreen() {
 
   if (!chat) return null;
 
-  const messages = [...chat.messages];
-  if (messageText.trim()) {
-    messages.push({
-      id: 'draft',
-      author: 'You',
-      text: messageText,
-      image: null,
-    });
-  }
+  const handleAttachImage = () => {
+    setHasPendingImage(true);
+  };
+
+  const handleSendMessage = () => {
+    if (!messageText.trim() && !hasPendingImage) return;
+
+    setSentMessages((prev) => [
+      ...prev,
+      {
+        id: `local-${Date.now()}`,
+        author: 'You',
+        text: messageText.trim() || ' ',
+        image: hasPendingImage ? 'local-placeholder' : null,
+      },
+    ]);
+    setMessageText('');
+    setHasPendingImage(false);
+  };
 
   return (
     <View style={styles.root}>
@@ -79,19 +92,38 @@ export default function GroupChatDetailsScreen() {
           style={styles.messagesScroll}
           contentContainerStyle={styles.messagesContent}
           showsVerticalScrollIndicator={false}>
-          {messages.map((message) => (
+          {sentMessages.map((message) => (
             <View key={message.id} style={styles.messageWrap}>
               <View style={styles.avatarDot} />
               <View style={styles.messageBlock}>
                 <Text style={styles.authorText}>{message.author}</Text>
                 <Text style={styles.messageText}>{message.text}</Text>
-                {message.image ? <Image source={{ uri: message.image }} style={styles.messageImage} /> : null}
+                {message.image ? (
+                  message.image === 'local-placeholder' ? (
+                    <View style={styles.localImagePlaceholder}>
+                      <Ionicons name="image-outline" size={20} color={DARK} />
+                      <Text style={styles.localImagePlaceholderText}>Image attached</Text>
+                    </View>
+                  ) : (
+                    <Image source={{ uri: message.image }} style={styles.messageImage} />
+                  )
+                ) : null}
               </View>
             </View>
           ))}
         </ScrollView>
 
         <View style={styles.inputWrap}>
+          {hasPendingImage ? (
+            <View style={styles.pendingImageBadge}>
+              <Ionicons name="image-outline" size={16} color={DARK} />
+              <Text style={styles.pendingImageText}>1 image ready</Text>
+            </View>
+          ) : null}
+          <View style={styles.inputRow}>
+            <Pressable onPress={handleAttachImage} style={styles.attachButton} hitSlop={8}>
+              <Ionicons name="image-outline" size={22} color={DARK} />
+            </Pressable>
           <TextInput
             style={styles.input}
             value={messageText}
@@ -99,6 +131,10 @@ export default function GroupChatDetailsScreen() {
             placeholder="Send a message..."
             placeholderTextColor="#9b8080"
           />
+            <Pressable onPress={handleSendMessage} style={styles.sendButton} hitSlop={8}>
+              <Ionicons name="send" size={20} color="#fff" />
+            </Pressable>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -181,6 +217,23 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#ddd',
   },
+  localImagePlaceholder: {
+    marginTop: 8,
+    width: responsive(148, 120, 180),
+    height: responsive(148, 120, 180),
+    borderRadius: 8,
+    backgroundColor: '#e4dada',
+    borderWidth: 1,
+    borderColor: '#ccb3b3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  localImagePlaceholderText: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: responsive(14, 12, 16),
+    color: DARK,
+  },
   inputWrap: {
     marginHorizontal: 16,
     marginBottom: 14,
@@ -189,11 +242,52 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#b49292',
     paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  pendingImageBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#eddcdc',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  pendingImageText: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: responsive(14, 12, 16),
+    color: DARK,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  attachButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f3e3e3',
+    borderWidth: 1,
+    borderColor: '#b49292',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#9f7f7f',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
+    flex: 1,
     fontFamily: 'Gaegu-Bold',
     fontSize: responsive(20, 16, 24),
     color: DARK,
-    paddingVertical: 10,
+    paddingVertical: 6,
   },
 });
