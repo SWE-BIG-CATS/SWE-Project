@@ -30,16 +30,42 @@ import {
   unfollowUser,
   removeFollower,
   getDisplayName,
+  getUserName,
+
 } from '../../FE-services/follows.service';
 import { useRouter } from 'expo-router';
+import {supabase} from "@/lib/supabaseClient";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user } = useUser();
   const currentUserId = user?.id;
+  const [profile, setProfile] = useState(null);
 
-  const displayName =
-      user?.user_metadata?.display_name || user?.email || 'Crafter';
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user?.id) return;
+
+      const { data, error } = await supabase
+          .from('users')
+          .select('first_name, last_name, username, display_name, avatar_url, level')
+          .eq('user_id', user.id)
+          .single();
+
+      if (error) {
+        console.error('Error loading profile:', error);
+        return;
+      }
+
+      console.log('profile row:', data);
+      setProfile(data);
+    };
+
+    loadProfile();
+  }, [user?.id]);
+
+  const userName = getUserName(profile);
+  const displayName = getDisplayName(profile);
 
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState(null);
@@ -166,7 +192,7 @@ export default function ProfileScreen() {
               style={styles.listTextContainer}
               onPress={() => goToOtherProfile(item.user_id)}
           >
-            <Text style={styles.listName}>{getDisplayName(item)}</Text>
+            <Text style={styles.listName}>{getUserName(item)}</Text>
             {!!item.bio && <Text style={styles.listBio}>{item.bio}</Text>}
           </Pressable>
 
@@ -192,7 +218,7 @@ export default function ProfileScreen() {
               style={styles.listTextContainer}
               onPress={() => goToOtherProfile(item.user_id)}
           >
-            <Text style={styles.listName}>{getDisplayName(item)}</Text>
+            <Text style={styles.listName}>{getUserName(item)}</Text>
             {!!item.bio && <Text style={styles.listBio}>{item.bio}</Text>}
           </Pressable>
 
@@ -224,7 +250,7 @@ export default function ProfileScreen() {
             style={styles.avatar}
         />
 
-        <Text style={styles.name}>{displayName}</Text>
+        <Text style={styles.name}>{userName}</Text>
         <Text style={styles.subtitle}>This is your profile page.</Text>
 
         <View style={styles.statsRow}>
