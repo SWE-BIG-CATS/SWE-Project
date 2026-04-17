@@ -177,9 +177,9 @@ const styles = StyleSheet.create({
   },
   previewText: {
     fontFamily: 'Gaegu-Bold',
-    fontSize: responsive(31, 21, 35),
+    fontSize: responsive(19, 15, 22),
     color: '#8e7777',
-    lineHeight: responsive(30, 24, 36),
+    lineHeight: responsive(22, 18, 26),
     marginTop: 2,
   },
   memberText: {
