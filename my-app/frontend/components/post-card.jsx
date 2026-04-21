@@ -1,23 +1,25 @@
-import { useState } from 'react';
-import { View, Text, Image, TextInput, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useUser } from '@/context/UserContext';
+import {
+  getPostComments,
+  getPostLikeSummary,
+  getPostSaveSummary,
+  setPostLike,
+  setPostSaved,
+} from '@/constants/exploreItems';
 
-export default function PostCard({ post }) {
-  const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState(post.comments ?? []);
-
-  const handleAddComment = () => {
-    if (!commentText.trim()) return;
-    const newComment = {
-      id: Date.now().toString(),
-      username: '@you',
-      text: commentText.trim(),
-      time: 'just now',
-    };
-    setComments(prev => [...prev, newComment]);
-    setCommentText('');
-  };
+export default function PostCard({ post, returnScrollY = 0 }) {
+  const { user } = useUser();
+  const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
+  const [saveCount, setSaveCount] = useState(0);
+  const [likeBusy, setLikeBusy] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
 
   const openUserProfile = (targetUserId) => {
     if (!targetUserId) return;
@@ -27,221 +29,256 @@ export default function PostCard({ post }) {
     });
   };
 
+  const username = post?.creatorUsername ? `@${post.creatorUsername}` : post?.username || '@posting_user';
+  const title = post?.title || 'Untitled craft';
+  const caption = post?.caption || '';
+  const tags = Array.isArray(post?.tags) ? post.tags.filter(Boolean) : [];
+  const imageUri = post?.imageUrl || post?.imageUri || null;
+
+  useEffect(() => {
+    let active = true;
+    async function loadCardStats() {
+      if (!post?.id) return;
+      try {
+        const [likeSummary, comments, savedState] = await Promise.all([
+          getPostLikeSummary(post.id, user?.id),
+          getPostComments(post.id),
+          getPostSaveSummary(post.id, user?.id),
+        ]);
+        if (!active) return;
+        setLiked(Boolean(likeSummary?.likedByCurrentUser));
+        setLikeCount(Number(likeSummary?.likeCount || 0));
+        setCommentCount(Array.isArray(comments) ? comments.length : 0);
+        setSaved(Boolean(savedState?.savedByCurrentUser));
+        setSaveCount(Number(savedState?.saveCount || 0));
+      } catch {
+        if (!active) return;
+        setLiked(false);
+        setSaved(false);
+      }
+    }
+    loadCardStats();
+    return () => {
+      active = false;
+    };
+  }, [post?.id, user?.id]);
+
+  const openPost = () => {
+    if (!post?.id) return;
+    router.push({
+      pathname: '/home/explore/[id]',
+      params: { id: post.id, fromRoute: 'home', returnY: String(Math.max(0, returnScrollY)) },
+    });
+  };
+
+  async function handleToggleLike() {
+    if (!post?.id) return;
+    if (!user?.id) {
+      Alert.alert('Sign in required', 'Please sign in to like posts.');
+      return;
+    }
+    if (likeBusy) return;
+    const nextLiked = !liked;
+    setLikeBusy(true);
+    setLiked(nextLiked);
+    setLikeCount((prev) => Math.max(0, prev + (nextLiked ? 1 : -1)));
+    try {
+      await setPostLike(post.id, user.id, nextLiked);
+    } catch (error) {
+      setLiked(!nextLiked);
+      setLikeCount((prev) => Math.max(0, prev + (nextLiked ? -1 : 1)));
+      Alert.alert('Error', error?.message || 'Could not update like.');
+    } finally {
+      setLikeBusy(false);
+    }
+  }
+
+  async function handleToggleSave() {
+    if (!post?.id) return;
+    if (!user?.id) {
+      Alert.alert('Sign in required', 'Please sign in to save posts.');
+      return;
+    }
+    if (saveBusy) return;
+    const nextSaved = !saved;
+    setSaveBusy(true);
+    setSaved(nextSaved);
+    setSaveCount((prev) => Math.max(0, prev + (nextSaved ? 1 : -1)));
+    try {
+      await setPostSaved(post.id, user.id, nextSaved);
+    } catch (error) {
+      setSaved(!nextSaved);
+      setSaveCount((prev) => Math.max(0, prev + (nextSaved ? -1 : 1)));
+      Alert.alert('Error', error?.message || 'Could not update save.');
+    } finally {
+      setSaveBusy(false);
+    }
+  }
+
   return (
-    <View style={styles.card}>
-      {/* Post Header */}
+    <Pressable onPress={openPost} style={styles.card}>
       <View style={styles.postHeader}>
         <View style={styles.avatarCircle}>
-          {post.userAvatar ? (
-            <Image source={{ uri: post.userAvatar }} style={styles.avatarImage} />
+          {post?.creatorAvatarUrl || post?.userAvatar ? (
+            <Image source={{ uri: post?.creatorAvatarUrl || post?.userAvatar }} style={styles.avatarImage} />
           ) : (
-            <Ionicons name="person-circle-outline" size={38} color="#888" />
+            <Ionicons name="person-circle-outline" size={26} color="#6f5d5d" />
           )}
         </View>
-        <Pressable onPress={() => openUserProfile(post.userId)}>
-          <Text style={styles.postUsername}>{post.username}</Text>
+        <Pressable onPress={(e) => { e.stopPropagation(); openUserProfile(post?.creatorId || post?.userId); }}>
+          <Text style={styles.postUsername}>{username}</Text>
         </Pressable>
       </View>
 
-      {/* Post Image */}
-      {post.imageUri ? (
-        <Image source={{ uri: post.imageUri }} style={styles.postImage} resizeMode="cover" />
+      <Text style={styles.postTitle}>{title}</Text>
+
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={styles.postImage} resizeMode="cover" />
       ) : (
         <View style={styles.postImagePlaceholder}>
-          <Ionicons name="image-outline" size={48} color="#bbb" />
+          <Ionicons name="image-outline" size={42} color="#817171" />
         </View>
       )}
 
-      {/* Caption */}
-      <Text style={styles.caption}>{post.caption}</Text>
+      <View style={styles.actionRow}>
+        <View style={styles.leftActionWrap}>
+          <Pressable onPress={(e) => { e.stopPropagation(); handleToggleLike(); }} hitSlop={8}>
+            <Ionicons name={liked ? 'heart' : 'heart-outline'} size={23} color={liked ? '#e84855' : '#875757'} />
+          </Pressable>
+          <Text style={styles.likeCount}>{likeCount}</Text>
+        </View>
+        <View style={styles.commentAction}>
+          <Ionicons name="chatbubble-outline" size={20} color="#6b5a5a" />
+          <Text style={styles.commentCount}>{commentCount}</Text>
+        </View>
+        <View style={styles.commentAction}>
+          <Pressable onPress={(e) => { e.stopPropagation(); handleToggleSave(); }} hitSlop={8}>
+            <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={22} color="#5b4a4a" />
+          </Pressable>
+          <Text style={styles.commentCount}>{saveCount}</Text>
+        </View>
+      </View>
 
-      {/* Tags */}
+      {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+
       <View style={styles.tagsRow}>
-        {post.tags.map((tag, i) => (
+        {tags.map((tag, i) => (
           <View key={i} style={styles.tag}>
             <Text style={styles.tagText}>{tag}</Text>
           </View>
         ))}
       </View>
-
-      <View style={styles.divider} />
-
-      {/* Comments Section */}
-      <Text style={styles.commentsTitle}>comments</Text>
-
-      {/* Add Comment Row */}
-      <View style={styles.addCommentRow}>
-        <View style={styles.avatarCircleSmall}>
-          <Ionicons name="person-circle-outline" size={32} color="#888" />
-        </View>
-        <TextInput
-          style={styles.commentInput}
-          placeholder="add a comment..."
-          placeholderTextColor="#aaa"
-          value={commentText}
-          onChangeText={setCommentText}
-          onSubmitEditing={handleAddComment}
-          returnKeyType="send"
-        />
-      </View>
-
-      <View style={styles.divider} />
-
-      {/* Existing Comments */}
-      {comments.map(comment => (
-        <View key={comment.id} style={styles.commentRow}>
-          <View style={styles.avatarCircleSmall}>
-            {comment.avatar ? (
-              <Image source={{ uri: comment.avatar }} style={styles.avatarImageSmall} />
-            ) : (
-              <Ionicons name="person-circle-outline" size={32} color="#888" />
-            )}
-          </View>
-          <View style={styles.commentBody}>
-            <View style={styles.commentMeta}>
-              <Pressable onPress={() => openUserProfile(comment.userId)}>
-                <Text style={styles.commentUsername}>{comment.username}</Text>
-              </Pressable>
-              <Text style={styles.commentTime}>  {comment.time}</Text>
-            </View>
-            <Text style={styles.commentText}>{comment.text}</Text>
-          </View>
-        </View>
-      ))}
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: '#efd8dd',
     marginTop: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#b89fa3',
+    padding: 12,
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    marginBottom: 6,
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#eee',
+    backgroundColor: '#dbc7cb',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarCircleSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#eee',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  avatarImageSmall: {
     width: 32,
     height: 32,
     borderRadius: 16,
   },
   postUsername: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 20,
+    color: '#3f3232',
+  },
+  postTitle: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 24,
+    color: '#352929',
+    marginBottom: 8,
   },
   postImage: {
     width: '100%',
-    height: 340,
+    height: 280,
+    borderRadius: 10,
   },
   postImagePlaceholder: {
     width: '100%',
-    height: 260,
-    backgroundColor: '#f0f0f0',
+    height: 280,
+    borderRadius: 10,
+    backgroundColor: '#2f2f3f',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  actionRow: {
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#bdb2a8',
+    backgroundColor: '#efe9d8',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 20,
+  },
+  leftActionWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  commentAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  likeCount: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 24,
+    color: '#3f3232',
+  },
+  commentCount: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 18,
+    color: '#3f3232',
+  },
   caption: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
+    marginTop: 8,
+    fontFamily: 'Gaegu-Bold',
     fontSize: 14,
-    color: '#333',
+    color: '#3f3232',
   },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
     paddingTop: 8,
     gap: 6,
   },
   tag: {
-    backgroundColor: '#e0e0e0',
-    borderRadius: 12,
+    backgroundColor: '#adb0b1',
+    borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   tagText: {
-    fontSize: 13,
-    color: '#444',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#ececec',
-    marginVertical: 10,
-    marginHorizontal: 16,
-  },
-  commentsTitle: {
-    paddingHorizontal: 16,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  addCommentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 4,
-  },
-  commentInput: {
-    flex: 1,
+    fontFamily: 'Gaegu-Bold',
     fontSize: 14,
-    color: '#333',
-    paddingVertical: 4,
-  },
-  commentRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  commentBody: {
-    flex: 1,
-  },
-  commentMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  commentUsername: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1a1a1a',
-  },
-  commentTime: {
-    fontSize: 12,
-    color: '#999',
-  },
-  commentText: {
-    fontSize: 13,
-    color: '#444',
-    marginTop: 2,
+    color: '#3f3232',
   },
 });
