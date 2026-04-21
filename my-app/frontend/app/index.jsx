@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
-import { Svg, Rect } from 'react-native-svg';
 import { supabase } from '@/lib/supabaseClient';
 import PicnicBackground from '../components/PicnicBackground';
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      setError('Please enter your username and password.');
+    const trimmedIdentifier = identifier.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedIdentifier || !trimmedPassword) {
+      setError('Please enter your username/email and password.');
       return;
     }
 
@@ -25,36 +27,43 @@ export default function LoginScreen() {
     setError('');
     setIsLoading(true);
 
-    const loginUsername = username.trim().toLowerCase();
+    let emailForAuth = trimmedIdentifier;
 
-    const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('email')
-      .eq('username', loginUsername)
-      .maybeSingle();
+    const isEmail = trimmedIdentifier.includes('@');
 
-    if (profileError) {
-      setIsLoading(false);
-      setError(profileError.message);
-      return;
-    }
+    if (!isEmail) {
+      const loginUsername = trimmedIdentifier.toLowerCase();
 
-    const emailForAuth = profile?.email?.trim();
-    if (!emailForAuth) {
-      setIsLoading(false);
-      setError('No account found for that username.');
-      return;
+      const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('username', loginUsername)
+          .maybeSingle();
+
+      if (profileError) {
+        setIsLoading(false);
+        setError(profileError.message);
+        return;
+      }
+
+      if (!profile?.email) {
+        setIsLoading(false);
+        setError('No account found for that username.');
+        return;
+      }
+
+      emailForAuth = profile.email.trim();
     }
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: emailForAuth,
-      password,
+      password: trimmedPassword,
     });
 
     setIsLoading(false);
 
     if (signInError) {
-      setError(signInError.message);
+      setError('Invalid login credentials.');
       return;
     }
 
@@ -62,63 +71,64 @@ export default function LoginScreen() {
   };
 
   return (
-    // <ImageBackground
-    //   source={require('../assets/images/Login_Screen.png')}
-    //   style={styles.background}
-    //   resizeMode="cover"
-    // >
-      <View style = {styles.background}>
+      <View style={styles.background}>
         <PicnicBackground />
-          <View style={styles.container}>
-            <View style={styles.loginSection}>
-              <Text style={styles.title}>LOGIN</Text>
 
-              <TextInput
-                value={username}
-                onChangeText={setUsername}
-                placeholder="Username"
+        <View style={styles.container}>
+          <View style={styles.loginSection}>
+            <Text style={styles.title}>LOGIN</Text>
+
+            <TextInput
+                value={identifier}
+                onChangeText={setIdentifier}
+                placeholder="Username or Email"
                 autoCapitalize="none"
                 autoCorrect={false}
+                keyboardType="email-address"
                 placeholderTextColor="#888"
                 style={styles.input}
-              />
+            />
 
-              <TextInput
+            <TextInput
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Password"
                 secureTextEntry
                 placeholderTextColor="#888"
                 style={styles.input}
-              />
+            />
 
-              {!!error && <Text style={styles.error}>{error}</Text>}
+            {!!error && <Text style={styles.error}>{error}</Text>}
 
-              <Pressable
+            <Pressable
                 style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
                 onPress={handleLogin}
                 disabled={isLoading}
-              >
-                <Text style={styles.buttonText}>{isLoading ? 'Logging in...' : 'Login'}</Text>
-              </Pressable>
-            </View>
-            <View style={styles.skipContainer}>
-              <Pressable onPress={() => router.replace('/home')}>
-                <Text style={styles.skipText}>Skip Login (dev mode) </Text>
-              </Pressable>
-            </View>
-            <View style={styles.createSection}>
-              <Text style={styles.newCrafter}>New Crafter?</Text>
+            >
+              <Text style={styles.buttonText}>
+                {isLoading ? 'Logging in...' : 'Login'}
+              </Text>
+            </Pressable>
+          </View>
 
-              <Pressable
+          <View style={styles.skipContainer}>
+            <Pressable onPress={() => router.replace('/home')}>
+              <Text style={styles.skipText}>Skip Login (dev mode)</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.createSection}>
+            <Text style={styles.newCrafter}>New Crafter?</Text>
+
+            <Pressable
                 style={({ pressed }) => [styles.createButton, pressed && styles.createButtonPressed]}
                 onPress={() => router.push('/register')}
-              >
-                <Text style={styles.createButtonText}>Create Account</Text>
-              </Pressable>
-            </View>
+            >
+              <Text style={styles.createButtonText}>Create Account</Text>
+            </Pressable>
           </View>
-    </View>
+        </View>
+      </View>
   );
 }
 
@@ -174,8 +184,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 6,
     borderWidth: 2,
-    // borderColor: '#c8940a',
-    // backgroundColor: '#FFFFFF',
     borderColor: '#348fd9',
     backgroundColor: '#9cdeff',
     alignItems: 'center',
@@ -201,7 +209,7 @@ const styles = StyleSheet.create({
     color: '#555',
     marginBottom: 12,
   },
-  skipContainer:{
+  skipContainer: {
     padding: 10,
     backgroundColor: 'rgba(253, 231, 142, 0.9)',
     borderRadius: 6,
@@ -209,10 +217,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     marginTop: 20,
   },
+  skipText: {
+    fontFamily: 'Gaegu',
+    fontSize: 18,
+    color: '#333',
+  },
   createButton: {
     width: '58%',
     height: 50,
-    //backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: '#348fd9',
     backgroundColor: '#9cdeff',
