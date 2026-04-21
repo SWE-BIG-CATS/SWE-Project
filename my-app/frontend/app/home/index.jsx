@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Animated, Easing, Image, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import {homeStyles} from '../../constants/homeStyles';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,8 @@ import StreakModal from '@/components/streakModal';
 import CatWindow from '@/components/cat-widget';
 import PostCard from '@/components/post-card';
 import { fetchExploreItems } from '@/constants/exploreItems';
+
+const REFRESH_SPINNER_IMAGE = require('@/assets/images/home_top_trim_updated.png');
 
 const MOCK_NOTIFICATIONS = [
   { id: '1', message: 'Your project "Oak Table" was saved.', time: '2m ago' },
@@ -31,8 +33,10 @@ export default function HomeScreen() {
   const [profileUsername, setProfileUsername] = useState(null);
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [postsError, setPostsError] = useState('');
   const [scrollY, setScrollY] = useState(0);
+  const spinnerRotate = useRef(new Animated.Value(0)).current;
 
   const handleLogout = async () => {
     if (supabase) {
@@ -79,6 +83,36 @@ export default function HomeScreen() {
     }, [loadPosts])
   );
 
+  useEffect(() => {
+    if (!refreshing) {
+      spinnerRotate.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.timing(spinnerRotate, {
+        toValue: 1,
+        duration: 850,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      spinnerRotate.setValue(0);
+    };
+  }, [refreshing, spinnerRotate]);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await loadPosts();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadPosts]);
+
   const filteredPosts = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return posts;
@@ -104,11 +138,15 @@ export default function HomeScreen() {
 
   const userText =
     profileUsername || user?.user_metadata?.username || user?.email?.split('@')[0] || '<User_Placeholder>';
+  const spinnerRotation = spinnerRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   return (
     <View style={homeStyles.container}>
       <Image source={require('@/assets/images/explore_background.png')} resizeMode="cover" style={homeStyles.backgroundLayer} />
-      <Image source={require('@/assets/images/home_top_trim_updated.png')} resizeMode="stretch" style={homeStyles.topTrim} />
+      <Image source={require('@/assets/images/home_top_trim_updated.png')} resizeMode="cover" style={homeStyles.topTrim} />
 
       <View style={[homeStyles.headerOverlay, { top: insets.top + 10 }]}>
         <View style={homeStyles.header}>
@@ -138,15 +176,33 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <View style={[homeStyles.foreground, { paddingTop: insets.top + 124 }]}>
+      <View style={[homeStyles.foreground, { paddingTop: insets.top + 80 }]}>
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={false}
+              onRefresh={handleRefresh}
+              tintColor="transparent"
+              colors={['transparent']}
+              progressBackgroundColor="transparent"
+            />
+          }
           onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
           scrollEventThrottle={16}>
+          {refreshing ? (
+            <View style={homeStyles.refreshSpinnerWrap}>
+              <Animated.Image
+                source={REFRESH_SPINNER_IMAGE}
+                style={[homeStyles.refreshSpinnerImage, { transform: [{ rotate: spinnerRotation }] }]}
+                resizeMode="contain"
+              />
+            </View>
+          ) : null}
           <View style={homeStyles.welcomeRow}>
             <Text style={homeStyles.welcome}>Welcome back, </Text>
             <Text style={homeStyles.welcomeUser} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>

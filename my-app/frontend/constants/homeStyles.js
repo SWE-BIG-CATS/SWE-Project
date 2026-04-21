@@ -11,7 +11,7 @@ export const homeStyles = StyleSheet.create({
     left: 0,
     right: 0,
     width: '100%',
-    height: 122,
+    height: 76,
   },
   backgroundLayer: {
     ...StyleSheet.absoluteFillObject,
@@ -159,5 +159,16 @@ export const homeStyles = StyleSheet.create({
     color: '#6f5a5a',
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  refreshSpinnerWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -16,
+    marginBottom: 10,
+  },
+  refreshSpinnerImage: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
 });

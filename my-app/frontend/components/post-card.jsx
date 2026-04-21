@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   },
   postTitle: {
     fontFamily: 'Gaegu-Bold',
-    fontSize: 42,
+    fontSize: 24,
     color: '#352929',
     marginBottom: 8,
   },
