@@ -96,7 +96,11 @@ export default function GroupChatsScreen() {
               key={chat.id}
               onPress={() => router.push(`/home/group-chats/${chat.id}`)}
               style={({ pressed }) => [styles.chatCard, pressed && styles.chatCardPressed]}>
-              <View style={styles.avatarDot} />
+              {chat.coverImage ? (
+                <Image source={{ uri: chat.coverImage }} style={styles.avatarDot} resizeMode="cover" />
+              ) : (
+                <View style={styles.avatarDot} />
+              )}
               <View style={styles.chatTextBlock}>
                 <Text style={styles.chatName}>{chat.name}</Text>
                 <Text numberOfLines={1} style={styles.previewText}>
