@@ -66,6 +66,24 @@ export default function HomeTabsLayout() {
             href: null,
           }}
         />
+        <Tabs.Screen
+            name="other.profile"
+            options={{
+                href: null,
+            }}
+        />
+          <Tabs.Screen
+              name="profile"
+              options={{
+                  title: 'Me',
+              }}
+          />
+          <Tabs.Screen
+              name="group-chats"
+              options={{
+                  title: 'Messages',
+              }}
+          />
       </Tabs>
     </View>
   );
