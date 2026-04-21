@@ -45,15 +45,17 @@ export default function NotificationModal({ visible, onClose, notifications }) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(48,36,36,0.28)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   panel: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    width: 300,
+    backgroundColor: '#f2dfe2',
+    borderRadius: 16,
+    width: 320,
     maxHeight: 400,
+    borderWidth: 1,
+    borderColor: '#b89fa3',
     padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -68,18 +70,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   panelTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 28,
+    color: '#3f3232',
   },
   empty: {
-    color: '#888',
+    color: '#7e6666',
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 18,
     textAlign: 'center',
     marginTop: 12,
   },
   separator: {
     height: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#d9bfc2',
     marginVertical: 8,
   },
   notifRow: {
@@ -87,12 +91,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   notifMessage: {
-    fontSize: 14,
-    color: '#333',
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 18,
+    color: '#4a3a3a',
   },
   notifTime: {
-    fontSize: 12,
-    color: '#999',
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 14,
+    color: '#7f6b6b',
     marginTop: 2,
   },
 });

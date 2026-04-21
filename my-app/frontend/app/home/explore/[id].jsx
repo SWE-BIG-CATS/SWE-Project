@@ -19,7 +19,7 @@ import {
   createPostComment,
   fetchExploreItemById,
   getPostComments,
-  getPostSavedByUser,
+  getPostSaveSummary,
   getPostLikeSummary,
   setPostSaved,
   setPostLike,
@@ -43,6 +43,7 @@ export default function ExplorePhotoScreen() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const fromUserId = Array.isArray(params.fromUserId) ? params.fromUserId[0] : params.fromUserId;
   const fromRoute = Array.isArray(params.fromRoute) ? params.fromRoute[0] : params.fromRoute;
+  const returnY = Array.isArray(params.returnY) ? params.returnY[0] : params.returnY;
   const insets = useSafeAreaInsets();
   const { user } = useUser();
   const [comment, setComment] = useState('');
@@ -50,6 +51,7 @@ export default function ExplorePhotoScreen() {
   const [likeCount, setLikeCount] = useState(0);
   const [likeBusy, setLikeBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveCount, setSaveCount] = useState(0);
   const [saveBusy, setSaveBusy] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentBusy, setCommentBusy] = useState(false);
@@ -79,14 +81,15 @@ export default function ExplorePhotoScreen() {
         const [likeSummary, commentRows, savedState] = await Promise.all([
           getPostLikeSummary(next.id, user?.id),
           getPostComments(next.id),
-          user?.id ? getPostSavedByUser(next.id, user.id) : Promise.resolve(false),
+          getPostSaveSummary(next.id, user?.id),
         ]);
         if (!active) return;
         setItem(next);
         setLiked(likeSummary.likedByCurrentUser);
         setLikeCount(likeSummary.likeCount);
         setComments(commentRows);
-        setSaved(savedState);
+        setSaved(Boolean(savedState.savedByCurrentUser));
+        setSaveCount(Number(savedState.saveCount || 0));
       } catch (error) {
         if (!active) return;
         setLoadError(error?.message || 'Unable to load this post.');
@@ -163,10 +166,12 @@ export default function ExplorePhotoScreen() {
 
     setSaveBusy(true);
     setSaved(nextSaved);
+    setSaveCount((prev) => Math.max(0, prev + (nextSaved ? 1 : -1)));
     try {
       await setPostSaved(item.id, user.id, nextSaved);
     } catch (error) {
       setSaved(previous);
+      setSaveCount((prev) => Math.max(0, prev + (nextSaved ? -1 : 1)));
       Alert.alert('Error', error?.message || 'Could not update save.');
     } finally {
       setSaveBusy(false);
@@ -184,7 +189,21 @@ export default function ExplorePhotoScreen() {
   const title     = item.title     ?? 'title here';
   const caption   = item.caption   ?? '';
   const tags      = Array.isArray(item.tags) && item.tags.length ? item.tags : ['tag1', 'tag2', 'etc. tags'];
+  const postDate = item.createdAt ? new Date(item.createdAt) : null;
+  const postDateText =
+    postDate && !Number.isNaN(postDate.getTime())
+      ? `${String(postDate.getMonth() + 1).padStart(2, '0')}.${String(postDate.getDate()).padStart(2, '0')}.${String(
+          postDate.getFullYear()
+        ).slice(-2)}`
+      : '';
   const handleBackPress = () => {
+    if (fromRoute === 'home') {
+      router.replace({
+        pathname: '/home',
+        params: { restoreY: returnY || '0' },
+      });
+      return;
+    }
     if (fromRoute === 'saves') {
       router.replace({
         pathname: '/home/saves',
@@ -250,6 +269,7 @@ export default function ExplorePhotoScreen() {
                 >
                   <Text style={styles.posterText}>{poster}</Text>
                 </Pressable>
+                {postDateText ? <Text style={styles.postDateText}>{postDateText}</Text> : null}
                 <Text style={styles.titleText}>{title}</Text>
               </View>
 
@@ -270,7 +290,7 @@ export default function ExplorePhotoScreen() {
               </View>
 
               {/* Like / bookmark bar */}
-              <View style={[styles.actionBar, { width: photoWidth }]}>
+              <View style={[styles.actionBar, { width: photoWidth - 12 }]}>
                 <View style={styles.likeSection}>
                   <Pressable onPress={handleToggleLike} hitSlop={10}>
                     <Ionicons
@@ -281,13 +301,16 @@ export default function ExplorePhotoScreen() {
                   </Pressable>
                   <Text style={styles.likeCountText}>{likeCount}</Text>
                 </View>
-                <Pressable onPress={handleToggleSave} hitSlop={10}>
-                  <Ionicons
-                    name={saved ? 'bookmark' : 'bookmark-outline'}
-                    size={responsive(26, 22, 32)}
-                    color={saved ? DARK : '#5c4a3d'}
-                  />
-                </Pressable>
+                <View style={styles.likeSection}>
+                  <Pressable onPress={handleToggleSave} hitSlop={10}>
+                    <Ionicons
+                      name={saved ? 'bookmark' : 'bookmark-outline'}
+                      size={responsive(26, 22, 32)}
+                      color={saved ? DARK : '#5c4a3d'}
+                    />
+                  </Pressable>
+                  <Text style={styles.likeCountText}>{saveCount}</Text>
+                </View>
               </View>
 
               {/* Craft caption + tags + comments */}
@@ -403,6 +426,10 @@ const styles = StyleSheet.create({
   postHeader: {
     marginTop: 6,
     marginBottom: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    columnGap: 8,
   },
   posterText: {
     fontFamily: 'Gaegu-Bold',
@@ -415,6 +442,13 @@ const styles = StyleSheet.create({
     fontSize: responsive(24, 20, 30),
     lineHeight: responsive(30, 26, 36),
     color: DARK,
+    width: '100%',
+  },
+  postDateText: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: responsive(14, 12, 17),
+    color: '#8f7474',
+    marginLeft: 'auto',
   },
 
   // Photo
@@ -441,7 +475,8 @@ const styles = StyleSheet.create({
   actionBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    gap: 18,
     marginTop: 10,
     paddingVertical: 12,
     paddingHorizontal: 14,

@@ -457,3 +457,32 @@ export async function setPostSaved(postId, userId, shouldSave) {
 
   if (deleteError) throw deleteError;
 }
+
+export async function getPostSaveSummary(postId, userId) {
+  if (!supabase || !postId) {
+    return { saveCount: 0, savedByCurrentUser: false };
+  }
+
+  const [{ count, error: countError }, { data: savedRow, error: savedError }] = await Promise.all([
+    supabase
+      .from('bookmarks')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId),
+    userId
+      ? supabase
+          .from('bookmarks')
+          .select('bookmark_id')
+          .eq('post_id', postId)
+          .eq('user_id', userId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
+  if (countError) throw countError;
+  if (savedError) throw savedError;
+
+  return {
+    saveCount: count || 0,
+    savedByCurrentUser: !!savedRow,
+  };
+}
