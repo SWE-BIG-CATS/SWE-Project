@@ -388,3 +388,44 @@ export async function getOrCreateDirectMessageChat(currentUserId, otherUserId) {
 
   return groupId;
 }
+
+export async function createGroupChat({ ownerId, name, description, memberIds = [] }) {
+  if (!supabase || !ownerId) {
+    throw new Error('Missing group creation data.');
+  }
+  const trimmedName = String(name || '').trim();
+  if (!trimmedName) {
+    throw new Error('Group name is required.');
+  }
+
+  const uniqueMemberIds = [...new Set([ownerId, ...memberIds].filter(Boolean))];
+
+  const { data: createdGroup, error: createGroupError } = await supabase
+    .from('groups')
+    .insert([
+      {
+        name: trimmedName,
+        description: String(description || '').trim() || null,
+        owner_id: ownerId,
+      },
+    ])
+    .select('group_id')
+    .single();
+  if (createGroupError) throw createGroupError;
+
+  const groupId = createdGroup.group_id;
+  const membershipRows = uniqueMemberIds.map((userId) => ({
+    group_id: groupId,
+    user_id: userId,
+    role: userId === ownerId ? 'admin' : 'member',
+  }));
+  const { error: membersError } = await supabase.from('group_members').insert(membershipRows);
+  if (membersError) throw membersError;
+
+  const { error: channelError } = await supabase
+    .from('group_channels')
+    .insert([{ group_id: groupId, name: 'general', description: 'Group chat channel' }]);
+  if (channelError) throw channelError;
+
+  return groupId;
+}
