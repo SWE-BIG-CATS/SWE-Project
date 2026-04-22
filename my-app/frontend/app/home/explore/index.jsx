@@ -11,19 +11,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { fetchExploreItems } from '@/constants/exploreItems';
-import {
-  filterPostsBySearch,
-  getTagSuggestions,
-  getUserSuggestions,
-  normalizeSelectedTag,
-  shouldShowSuggestions,
-} from '@/FE-services/search.service';
+import { filterPostsBySearch } from '@/FE-services/search.service';
 import SearchSuggestions from '@/components/search.suggestions';
 import SearchTagChips from '@/components/search.tag.chips';
+import {
+  buildTagParam,
+  parseTagParam,
+  useSharedSearchBar,
+} from '@/FE-services/useSharedSearchBar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BASE_WIDTH = 390;
@@ -44,10 +43,10 @@ function CraftCard({ item }) {
   return (
       <Pressable
           onPress={() =>
-            router.push({
-              pathname: '/home/explore/[id]',
-              params: { id: item.id, fromRoute: 'explore' },
-            })
+              router.push({
+                pathname: '/home/explore/[id]',
+                params: { id: item.id, fromRoute: 'explore' },
+              })
           }
           style={({ pressed }) => [pressed && styles.cardPressed]}
       >
@@ -72,30 +71,44 @@ function CraftCard({ item }) {
 }
 
 export default function ExploreScreen() {
-  const [draftQuery, setDraftQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
-  const [selectedDraftTags, setSelectedDraftTags] = useState([]);
-  const [submittedTags, setSubmittedTags] = useState([]);
+  const params = useLocalSearchParams();
+  const qParam = Array.isArray(params.q) ? params.q[0] : params.q;
+  const tagsParam = Array.isArray(params.tags) ? params.tags[0] : params.tags;
 
-  const [userSuggestions, setUserSuggestions] = useState([]);
-  const [tagSuggestions, setTagSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const initialQuery = useMemo(() => (qParam ? String(qParam) : ''), [qParam]);
+  const initialTags = useMemo(() => parseTagParam(tagsParam), [tagsParam]);
+
+  const {
+    draftQuery,
+    selectedDraftTags,
+    userSuggestions,
+    tagSuggestions,
+    showSuggestions,
+    suggestionsLoading,
+    handleChangeText,
+    handleTagPress,
+    handleRemoveTag,
+    dismissSuggestions,
+    clearSuggestions,
+    resetDraftState,
+    hydrateDraftState,
+  } = useSharedSearchBar({
+    initialQuery,
+    initialTags,
+  });
+
+  const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
+  const [submittedTags, setSubmittedTags] = useState(initialTags);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
   const resetSearch = useCallback(() => {
-    setDraftQuery('');
+    resetDraftState();
     setSubmittedQuery('');
-    setSelectedDraftTags([]);
     setSubmittedTags([]);
-    setUserSuggestions([]);
-    setTagSuggestions([]);
-    setShowSuggestions(false);
-    setSuggestionsLoading(false);
-  }, []);
+  }, [resetDraftState]);
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -117,47 +130,10 @@ export default function ExploreScreen() {
   );
 
   useEffect(() => {
-    if (!shouldShowSuggestions(draftQuery)) {
-      setUserSuggestions([]);
-      setTagSuggestions([]);
-      setShowSuggestions(false);
-      setSuggestionsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        setSuggestionsLoading(true);
-
-        const [users, tags] = await Promise.all([
-          getUserSuggestions(draftQuery),
-          getTagSuggestions(draftQuery, selectedDraftTags),
-        ]);
-
-        if (cancelled) return;
-
-        setUserSuggestions(users);
-        setTagSuggestions(tags);
-        setShowSuggestions(users.length > 0 || tags.length > 0);
-      } catch (error) {
-        if (cancelled) return;
-        setUserSuggestions([]);
-        setTagSuggestions([]);
-        setShowSuggestions(false);
-      } finally {
-        if (!cancelled) {
-          setSuggestionsLoading(false);
-        }
-      }
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-    };
-  }, [draftQuery, selectedDraftTags]);
+    hydrateDraftState(initialQuery, initialTags);
+    setSubmittedQuery(initialQuery);
+    setSubmittedTags(initialTags);
+  }, [initialQuery, initialTags, hydrateDraftState]);
 
   const filtered = useMemo(
       () => filterPostsBySearch(items, submittedQuery, submittedTags),
@@ -167,69 +143,57 @@ export default function ExploreScreen() {
   const leftCol = filtered.filter((_, i) => i % 2 === 0);
   const rightCol = filtered.filter((_, i) => i % 2 === 1);
 
-  const hasSubmittedSearch =
-      !!submittedQuery.trim() || submittedTags.length > 0;
-
-  const handleChangeText = useCallback(
-      (text) => {
-        setDraftQuery(text);
-
-        if (!text.trim() && selectedDraftTags.length === 0) {
-          resetSearch();
-        }
-      },
-      [resetSearch, selectedDraftTags.length]
-  );
+  const hasSubmittedSearch = !!submittedQuery.trim() || submittedTags.length > 0;
 
   const handleSubmitSearch = useCallback(() => {
-    setSubmittedQuery(draftQuery.trim());
+    const trimmed = draftQuery.trim();
+
+    setSubmittedQuery(trimmed);
     setSubmittedTags(selectedDraftTags);
-    setShowSuggestions(false);
+    dismissSuggestions();
     Keyboard.dismiss();
-  }, [draftQuery, selectedDraftTags]);
+
+    router.setParams({
+      q: trimmed || undefined,
+      tags: selectedDraftTags.length ? buildTagParam(selectedDraftTags) : undefined,
+    });
+  }, [draftQuery, selectedDraftTags, dismissSuggestions]);
 
   const handleUserPress = useCallback((user) => {
-    setShowSuggestions(false);
+    dismissSuggestions();
     Keyboard.dismiss();
 
     router.push({
       pathname: '/home/other.profile',
       params: { userId: user.id },
     });
-  }, []);
+  }, [dismissSuggestions]);
 
-  const handleTagPress = useCallback((tag) => {
-    const normalized = normalizeSelectedTag(tag.slug || tag.name);
-    if (!normalized) return;
+  const handleChangeSearchText = useCallback(
+      (text) => {
+        handleChangeText(text);
 
-    setSelectedDraftTags((prev) => {
-      if (prev.includes(normalized)) return prev;
-      return [...prev, normalized];
-    });
-
-    setDraftQuery('');
-    setUserSuggestions([]);
-    setTagSuggestions([]);
-    setShowSuggestions(false);
-  }, []);
-
-  const handleRemoveTag = useCallback(
-      (tagToRemove) => {
-        setSelectedDraftTags((prev) => {
-          const next = prev.filter((tag) => tag !== tagToRemove);
-
-          if (!next.length && !draftQuery.trim()) {
-            setSubmittedTags([]);
-            setSubmittedQuery('');
-            setUserSuggestions([]);
-            setTagSuggestions([]);
-            setShowSuggestions(false);
-          }
-
-          return next;
-        });
+        if (!text.trim() && selectedDraftTags.length === 0) {
+          setSubmittedQuery('');
+          setSubmittedTags([]);
+        }
       },
-      [draftQuery]
+      [handleChangeText, selectedDraftTags.length]
+  );
+
+  const handleRemoveSelectedTag = useCallback(
+      (tagToRemove) => {
+        const nextTags = selectedDraftTags.filter((tag) => tag !== tagToRemove);
+
+        handleRemoveTag(tagToRemove);
+
+        if (!nextTags.length && !draftQuery.trim()) {
+          setSubmittedTags([]);
+          setSubmittedQuery('');
+          clearSuggestions();
+        }
+      },
+      [selectedDraftTags, handleRemoveTag, draftQuery, clearSuggestions]
   );
 
   const content = (
@@ -248,13 +212,18 @@ export default function ExploreScreen() {
                   placeholder="search..."
                   placeholderTextColor="#a08080"
                   value={draftQuery}
-                  onChangeText={handleChangeText}
+                  onChangeText={handleChangeSearchText}
                   onSubmitEditing={handleSubmitSearch}
                   returnKeyType="search"
                   autoCapitalize="none"
                   autoCorrect={false}
                   blurOnSubmit={false}
               />
+              {draftQuery.length > 0 || selectedDraftTags.length > 0 ? (
+                  <Pressable onPress={resetSearch} hitSlop={8}>
+                    <Ionicons name="close-circle" size={18} color="#a08080" />
+                  </Pressable>
+              ) : null}
             </View>
 
             <SearchSuggestions
@@ -268,7 +237,7 @@ export default function ExploreScreen() {
 
             <SearchTagChips
                 tags={selectedDraftTags}
-                onRemove={handleRemoveTag}
+                onRemove={handleRemoveSelectedTag}
             />
           </View>
         </View>
