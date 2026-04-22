@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 8,
-        marginTop: 10,
+        marginTop: 6,
     },
     chip: {
         flexDirection: 'row',
@@ -49,11 +49,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#f6dcdc',
         borderRadius: 999,
         paddingHorizontal: 12,
-        paddingVertical: 7,
+        paddingVertical: 2,
     },
     chipText: {
         fontFamily: 'Gaegu',
-        fontSize: responsive(16, 14, 18),
+        fontSize: responsive(12, 10, 14),
         color: DARK,
     },
 });

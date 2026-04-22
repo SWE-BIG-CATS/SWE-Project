@@ -76,6 +76,10 @@ export const homeStyles = StyleSheet.create({
     textAlignVertical: 'center',
     outlineStyle: 'none',
   },
+  searchArea: {
+    flex: 1,
+    zIndex: 20,
+  },
   subtitle: {
     fontFamily: 'Gaegu-Bold',
     fontSize: 20,
