@@ -6,6 +6,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -49,6 +50,7 @@ export default function GroupChatDetailsScreen() {
   const [sending, setSending] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [expandedImageUri, setExpandedImageUri] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -183,6 +185,7 @@ export default function GroupChatDetailsScreen() {
   const canSend = !sending && (!!messageText.trim() || !!pendingImage);
   const messagesBottomPadding = keyboardVisible ? 18 : tabBarHeight + 90;
   const composerBottomMargin = keyboardVisible ? 2 : tabBarHeight + 8;
+  const isImageModalVisible = !!expandedImageUri;
 
   return (
     <View style={styles.root}>
@@ -220,7 +223,11 @@ export default function GroupChatDetailsScreen() {
               <View style={styles.messageBlock}>
                 <Text style={styles.authorText}>{message.author}</Text>
                 <Text style={styles.messageText}>{message.text}</Text>
-                {message.image ? <Image source={{ uri: message.image }} style={styles.messageImage} /> : null}
+                {message.image ? (
+                  <Pressable onPress={() => setExpandedImageUri(message.image)} hitSlop={8}>
+                    <Image source={{ uri: message.image }} style={styles.messageImage} />
+                  </Pressable>
+                ) : null}
               </View>
             </View>
           ))}
@@ -261,6 +268,20 @@ export default function GroupChatDetailsScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={isImageModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExpandedImageUri('')}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalDismissArea} onPress={() => setExpandedImageUri('')} />
+          <Pressable style={styles.modalCloseButton} onPress={() => setExpandedImageUri('')} hitSlop={10}>
+            <Ionicons name="close" size={28} color="#fff" />
+          </Pressable>
+          <Image source={{ uri: expandedImageUri }} style={styles.expandedImage} resizeMode="contain" />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -340,6 +361,27 @@ const styles = StyleSheet.create({
     height: responsive(148, 120, 180),
     borderRadius: 6,
     backgroundColor: '#ddd',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  modalDismissArea: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: responsive(56, 46, 66),
+    right: 22,
+    zIndex: 2,
+  },
+  expandedImage: {
+    width: '100%',
+    maxWidth: 520,
+    height: '80%',
   },
   inputWrap: {
     marginHorizontal: 16,
