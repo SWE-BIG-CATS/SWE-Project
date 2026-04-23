@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@/context/UserContext';
 
-import { fetchGroupChat, leaveGroup, normalizeRouteChatId } from '@/lib/groupChats.service';
+import { fetchGroupChat, leaveGroup, normalizeRouteChatId, removeGroupMember } from '@/lib/groupChats.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BASE_WIDTH = 390;
@@ -27,27 +27,30 @@ export default function GroupChatMoreScreen() {
   const chatId = normalizeRouteChatId(params.chatId);
   const { user } = useUser();
   const [chat, setChat] = useState(null);
+  const [memberActionTarget, setMemberActionTarget] = useState(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
-      if (!chatId) {
-        router.back();
-        return () => {
-          mounted = false;
-        };
-      }
-      fetchGroupChat(chatId, user?.id)
-        .then((data) => {
-          if (mounted) setChat(data);
-        })
-        .catch(() => {
-          if (mounted) setChat(null);
-        });
+  const loadChat = useCallback(() => {
+    let mounted = true;
+    if (!chatId) {
+      router.back();
       return () => {
         mounted = false;
       };
-    }, [chatId, user?.id])
+    }
+    fetchGroupChat(chatId, user?.id)
+      .then((data) => {
+        if (mounted) setChat(data);
+      })
+      .catch(() => {
+        if (mounted) setChat(null);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [chatId, user?.id]);
+
+  useFocusEffect(
+    useCallback(() => loadChat(), [loadChat])
   );
 
   async function handleLeaveGroup() {
@@ -79,6 +82,29 @@ export default function GroupChatMoreScreen() {
       pathname: '/home/other.profile',
       params: { userId: memberUserId },
     });
+  }
+
+  const memberIndex = chat?.memberUserIds?.findIndex((id) => id === user?.id) ?? -1;
+  const currentUserRole = memberIndex >= 0 ? String(chat?.memberRoles?.[memberIndex] || 'member') : 'member';
+  const isCurrentUserAdmin = currentUserRole === 'admin';
+
+  function openMemberAction(member, memberUserId, memberRole) {
+    if (!isCurrentUserAdmin || !memberUserId || memberUserId === user?.id || memberRole === 'admin') return;
+    setMemberActionTarget({ name: member, userId: memberUserId });
+  }
+
+  async function handleKickMember() {
+    if (!memberActionTarget?.userId || !chatId) {
+      setMemberActionTarget(null);
+      return;
+    }
+    try {
+      await removeGroupMember({ groupId: chatId, userId: memberActionTarget.userId });
+      setMemberActionTarget(null);
+      loadChat();
+    } catch (error) {
+      Alert.alert('Error', error?.message || 'Could not remove member.');
+    }
   }
 
   if (!chat) {
@@ -138,6 +164,8 @@ export default function GroupChatMoreScreen() {
                 key={`${member}-${memberUserId || index}`}
                 style={styles.memberPressable}
                 onPress={() => handleMemberPress(memberUserId)}
+                onLongPress={() => openMemberAction(member, memberUserId, memberRole)}
+                delayLongPress={260}
                 disabled={!memberUserId}
               >
                 <View style={styles.memberRow}>
@@ -159,6 +187,24 @@ export default function GroupChatMoreScreen() {
           <SettingsRow icon="notifications-outline" label="Mute" value={chat.settings.isMuted ? 'On' : 'Off'} />
         </View>
       </ScrollView>
+
+      <Modal
+        visible={!!memberActionTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMemberActionTarget(null)}
+      >
+        <View style={styles.memberActionBackdrop}>
+          <Pressable style={styles.memberActionDismissArea} onPress={() => setMemberActionTarget(null)} />
+          <View style={styles.memberActionCard}>
+            <Text numberOfLines={1} style={styles.memberActionTitle}>{memberActionTarget?.name}</Text>
+            <Pressable style={styles.kickActionRow} onPress={handleKickMember}>
+              <Ionicons name="person-remove-outline" size={19} color="#9c4f4f" />
+              <Text style={styles.kickActionText}>Kick member</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -293,5 +339,41 @@ const styles = StyleSheet.create({
     fontFamily: 'Gaegu-Bold',
     fontSize: responsive(23, 17, 28),
     color: '#7f6666',
+  },
+  memberActionBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.16)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 26,
+  },
+  memberActionDismissArea: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  memberActionCard: {
+    width: '100%',
+    maxWidth: 260,
+    backgroundColor: '#f8e2e2',
+    borderWidth: 1,
+    borderColor: '#d0afaf',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  memberActionTitle: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: responsive(18, 15, 21),
+    color: DARK,
+  },
+  kickActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  kickActionText: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: responsive(17, 14, 20),
+    color: '#8d4b4b',
   },
 });

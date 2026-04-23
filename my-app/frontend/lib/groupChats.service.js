@@ -16,7 +16,7 @@ export function isUuid(value) {
 }
 
 function parseMessageContent(raw) {
-  const fallback = { text: String(raw || ''), image: null };
+  const fallback = { text: String(raw || ''), image: null, editedAt: null };
   if (typeof raw !== 'string') return fallback;
   try {
     const parsed = JSON.parse(raw);
@@ -24,6 +24,7 @@ function parseMessageContent(raw) {
       return {
         text: String(parsed.text || ''),
         image: parsed.image || null,
+        editedAt: parsed.editedAt || null,
       };
     }
     return fallback;
@@ -32,10 +33,11 @@ function parseMessageContent(raw) {
   }
 }
 
-function serializeMessageContent(text, image) {
+function serializeMessageContent(text, image, editedAt = null) {
   return JSON.stringify({
     text: String(text || ''),
     image: image || null,
+    editedAt: editedAt || null,
   });
 }
 
@@ -454,6 +456,7 @@ export async function fetchGroupChat(chatId, currentUserId) {
       avatarUrl: avatarUrl || null,
       text: parsed.text || '',
       image: parsed.image || null,
+      editedAt: parsed.editedAt || null,
       userId: row.user_id,
       createdAt: row.created_at,
     };
@@ -512,7 +515,32 @@ export async function sendGroupMessage({ channelId, userId, text, image }) {
     avatarUrl: avatarUrl || null,
     text: parsed.text || '',
     image: parsed.image || null,
+    editedAt: parsed.editedAt || null,
     userId,
+    createdAt: data.created_at,
+  };
+}
+
+export async function updateGroupMessage({ messageId, text, image }) {
+  if (!supabase || !messageId) {
+    throw new Error('Missing message update data.');
+  }
+  const editedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('group_messages')
+    .update({
+      content: serializeMessageContent(String(text || '').trim(), image || null, editedAt),
+    })
+    .eq('message_id', messageId)
+    .select('message_id, content, created_at')
+    .single();
+  if (error) throw error;
+  const parsed = parseMessageContent(data.content);
+  return {
+    id: data.message_id,
+    text: parsed.text || '',
+    image: parsed.image || null,
+    editedAt: parsed.editedAt || editedAt,
     createdAt: data.created_at,
   };
 }
@@ -639,6 +667,27 @@ export async function addMembersToGroup({ groupId, userIds = [] }) {
     .upsert(rows, { onConflict: 'group_id,user_id', ignoreDuplicates: true });
   if (error) throw error;
   return uniqueIds.length;
+}
+
+export async function removeGroupMember({ groupId, userId }) {
+  if (!supabase || !groupId || !userId) throw new Error('Missing member removal data.');
+  const { error } = await supabase
+    .from('group_members')
+    .delete()
+    .eq('group_id', groupId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  return true;
+}
+
+export async function deleteGroupMessage({ messageId }) {
+  if (!supabase || !messageId) throw new Error('Missing message delete data.');
+  const { error } = await supabase
+    .from('group_messages')
+    .delete()
+    .eq('message_id', messageId);
+  if (error) throw error;
+  return true;
 }
 
 export async function leaveGroup({ groupId, userId }) {
