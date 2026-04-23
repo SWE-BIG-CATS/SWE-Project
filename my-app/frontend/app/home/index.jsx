@@ -289,8 +289,13 @@ export default function HomeScreen() {
             resizeMode="cover"
             style={homeStyles.backgroundLayer}
         />
+        <Image
+            source={require('@/assets/images/my_craft_home_navbar.png')}
+            resizeMode="contain"
+            style={homeStyles.topTrim}
+        />
 
-        <View style={[homeStyles.headerOverlay, { top: insets.top + 10 }]}>
+        <View style={[homeStyles.headerOverlay, { top: insets.top + 6 }]}>
           <View style={homeStyles.header}>
             <View style={homeStyles.headerSideSpacer} />
             <View style={homeStyles.searchArea}>
@@ -335,7 +340,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={[homeStyles.foreground, { paddingTop: insets.top + 104 }]}>
+        <View style={[homeStyles.foreground, { paddingTop: insets.top + 80 }]}>
           <ScrollView
               ref={scrollRef}
               style={{ flex: 1 }}

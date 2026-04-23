@@ -8,10 +8,10 @@ export const homeStyles = StyleSheet.create({
   topTrim: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
-    width: '100%',
-    height: 76,
+    left: '-1%',
+    width: '102%',
+    height: 154,
+    zIndex: 2,
   },
   backgroundLayer: {
     ...StyleSheet.absoluteFillObject,
@@ -159,12 +159,15 @@ export const homeStyles = StyleSheet.create({
     fontFamily: 'Gaegu-Bold',
     fontSize: 22,
     color: '#5c3d3d',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   welcomeRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 8,
+    paddingTop: 24,
+    paddingBottom: 12,
+    paddingHorizontal: 12,
+    marginBottom: 4,
   },
   welcomeUser: {
     flex: 1,
