@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -28,14 +28,13 @@ import {
   buildTagParam,
   useSharedSearchBar,
 } from '@/FE-services/useSharedSearchBar';
+import {
+  fetchNotificationsForUser,
+  markAllNotificationsReadForUser,
+  subscribeToUserNotifications,
+} from '@/lib/notifications';
 
 const REFRESH_SPINNER_IMAGE = require('@/assets/images/home_top_trim_updated.png');
-
-const MOCK_NOTIFICATIONS = [
-  { id: '1', message: 'Your project "Oak Table" was saved.', time: '2m ago' },
-  { id: '2', message: 'New comment on "Walnut Shelf".', time: '1h ago' },
-  { id: '3', message: 'Material restock reminder: Pine boards.', time: '3h ago' },
-];
 
 export default function HomeScreen() {
   const params = useLocalSearchParams();
@@ -61,6 +60,7 @@ export default function HomeScreen() {
   } = useSharedSearchBar();
 
   const [notifVisible, setNotifVisible] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [streakVisible, setStreakVisible] = useState(false);
   const [profileUsername, setProfileUsername] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -122,6 +122,70 @@ export default function HomeScreen() {
         loadPosts();
       }, [loadPosts])
   );
+
+  const unreadNotifCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) {
+        setNotifications([]);
+        return;
+      }
+      let active = true;
+      (async () => {
+        try {
+          const rows = await fetchNotificationsForUser(user.id);
+          if (active) setNotifications(rows);
+        } catch {
+          if (active) setNotifications([]);
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, [user?.id])
+  );
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+    return subscribeToUserNotifications(user.id, (next) => {
+      setNotifications((prev) => {
+        if (prev.some((p) => p.id === next.id)) {
+          return prev;
+        }
+        return [next, ...prev];
+      });
+    });
+  }, [user?.id]);
+
+  const openNotifications = useCallback(async () => {
+    setNotifVisible(true);
+    if (user?.id) {
+      try {
+        const rows = await fetchNotificationsForUser(user.id);
+        setNotifications(rows);
+      } catch {
+        // keep existing list
+      }
+    }
+  }, [user?.id]);
+
+  const closeNotifications = useCallback(async () => {
+    setNotifVisible(false);
+    if (user?.id) {
+      try {
+        await markAllNotificationsReadForUser(user.id);
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      } catch {
+        // ignore
+      }
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (!refreshing) {
@@ -325,10 +389,13 @@ export default function HomeScreen() {
 
             <View style={homeStyles.quickActionsRow}>
               <View style={homeStyles.leftActionsColumn}>
-                <Pressable style={homeStyles.homebuttons} onPress={() => setNotifVisible(true)}>
-                  <Ionicons name="notifications-outline" size={16} color="#7b6666" />
-                  <Text style={homeStyles.notificationsText}>notifications</Text>
-                </Pressable>
+                <View style={homeStyles.notifButtonWrap}>
+                  {unreadNotifCount > 0 ? <View style={homeStyles.notifBadgeDot} /> : null}
+                  <Pressable style={homeStyles.homebuttons} onPress={openNotifications}>
+                    <Ionicons name="notifications-outline" size={16} color="#7b6666" />
+                    <Text style={homeStyles.notificationsText}>notifications</Text>
+                  </Pressable>
+                </View>
 
                 <Pressable style={homeStyles.homebuttons} onPress={() => setStreakVisible(true)}>
                   <Ionicons name="flame-outline" size={16} color="#7b6666" />
@@ -364,8 +431,8 @@ export default function HomeScreen() {
 
         <NotificationModal
             visible={notifVisible}
-            onClose={() => setNotifVisible(false)}
-            notifications={MOCK_NOTIFICATIONS}
+            onClose={closeNotifications}
+            notifications={notifications}
         />
         <StreakModal visible={streakVisible} onClose={() => setStreakVisible(false)} streak={5} />
       </View>

@@ -107,6 +107,20 @@ export const homeStyles = StyleSheet.create({
     borderRadius: 10,
     alignSelf: 'flex-start',
   },
+  notifButtonWrap: {
+    position: 'relative',
+    alignSelf: 'flex-start',
+  },
+  notifBadgeDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 8,
+    height: 8,
+    borderRadius: 5,
+    backgroundColor: '#e84855',
+    zIndex: 1,
+  },
   quickActionsRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
