@@ -14,7 +14,6 @@ import {
   View,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@/context/UserContext';
 import {
@@ -259,19 +258,9 @@ export default function ProfileScreen() {
         style={styles.backgroundLayer}
       />
       <View style={styles.foreground}>
-        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <Pressable
-            style={({ pressed }) => [styles.headerBack, pressed && styles.headerBackPressed]}
-            onPress={() => router.back()}
-            hitSlop={12}
-          >
-            <Ionicons name="chevron-back" size={responsive(24, 20, 28)} color={DARK} />
-          </Pressable>
-        </View>
-
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
           showsVerticalScrollIndicator={false}
         >
         <View style={styles.profileHeaderRow}>
@@ -422,33 +411,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  topBar: {
-    paddingHorizontal: H_PAD,
-    paddingBottom: 10,
-  },
-  headerBack: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  headerBackPressed: {
-    opacity: 0.88,
-  },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: H_PAD,
-    paddingTop: 8,
     paddingBottom: responsive(150, 130, 180),
   },
   profileHeaderRow: {
