@@ -4,6 +4,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,6 +16,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useUser } from '@/context/UserContext';
 
 import {
@@ -36,6 +38,7 @@ const DARK = '#5c3d3d';
 
 export default function GroupChatDetailsScreen() {
   const params = useLocalSearchParams();
+  const tabBarHeight = useBottomTabBarHeight();
   const chatId = normalizeRouteChatId(params.chatId);
   const { user } = useUser();
   const [messageText, setMessageText] = useState('');
@@ -45,6 +48,7 @@ export default function GroupChatDetailsScreen() {
   const [sentMessages, setSentMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -86,6 +90,18 @@ export default function GroupChatDetailsScreen() {
       }
     }, [chat?.channelId, user?.id])
   );
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   if (loadError) {
     return (
@@ -164,6 +180,10 @@ export default function GroupChatDetailsScreen() {
     }
   };
 
+  const canSend = !sending && (!!messageText.trim() || !!pendingImage);
+  const messagesBottomPadding = keyboardVisible ? 18 : tabBarHeight + 90;
+  const composerBottomMargin = keyboardVisible ? 2 : tabBarHeight + 8;
+
   return (
     <View style={styles.root}>
       <Image
@@ -174,7 +194,8 @@ export default function GroupChatDetailsScreen() {
 
       <KeyboardAvoidingView
         style={styles.foreground}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Ionicons name="arrow-back" size={30} color={DARK} />
@@ -187,7 +208,7 @@ export default function GroupChatDetailsScreen() {
 
         <ScrollView
           style={styles.messagesScroll}
-          contentContainerStyle={styles.messagesContent}
+          contentContainerStyle={[styles.messagesContent, { paddingBottom: messagesBottomPadding }]}
           showsVerticalScrollIndicator={false}>
           {sentMessages.map((message) => (
             <View key={message.id} style={styles.messageWrap}>
@@ -205,25 +226,36 @@ export default function GroupChatDetailsScreen() {
           ))}
         </ScrollView>
 
-        <View style={styles.inputWrap}>
+        <View
+          style={[
+            styles.inputWrap,
+            { marginBottom: composerBottomMargin },
+          ]}>
           {pendingImage ? (
             <View style={styles.pendingImageBadge}>
-              <Ionicons name="image-outline" size={16} color={DARK} />
+              <Image source={{ uri: pendingImage.localUri }} style={styles.pendingImageThumb} />
               <Text style={styles.pendingImageText}>1 image ready</Text>
+              <Pressable onPress={() => setPendingImage(null)} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color={DARK} />
+              </Pressable>
             </View>
           ) : null}
           <View style={styles.inputRow}>
             <Pressable onPress={handleAttachImage} style={styles.attachButton} hitSlop={8}>
               <Ionicons name="image-outline" size={22} color={DARK} />
             </Pressable>
-          <TextInput
-            style={styles.input}
-            value={messageText}
-            onChangeText={setMessageText}
-            placeholder="Send a message..."
-            placeholderTextColor="#9b8080"
-          />
-            <Pressable onPress={handleSendMessage} style={styles.sendButton} hitSlop={8} disabled={sending}>
+            <TextInput
+              style={styles.input}
+              value={messageText}
+              onChangeText={setMessageText}
+              placeholder="Send a message..."
+              placeholderTextColor="#9b8080"
+            />
+            <Pressable
+              onPress={handleSendMessage}
+              style={[styles.sendButton, !canSend ? styles.sendButtonDisabled : null]}
+              hitSlop={8}
+              disabled={!canSend}>
               <Ionicons name="send" size={20} color="#fff" />
             </Pressable>
           </View>
@@ -335,6 +367,12 @@ const styles = StyleSheet.create({
     fontSize: responsive(14, 12, 16),
     color: DARK,
   },
+  pendingImageThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#ddd',
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -357,6 +395,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#9f7f7f',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#ccb4b4',
   },
   input: {
     flex: 1,

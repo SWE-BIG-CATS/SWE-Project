@@ -37,6 +37,7 @@ export default function HomeTabsLayout() {
           tabBarActiveTintColor: TAB_BAR_LABEL_ACTIVE,
           tabBarInactiveTintColor: TAB_BAR_LABEL_INACTIVE,
           headerShown: false,
+          tabBarHideOnKeyboard: true,
           tabBarButton: (props) => <HapticTab {...props} />,
           tabBarLabelPosition: 'below-icon',
           tabBarStyle: styles.tabBar,
