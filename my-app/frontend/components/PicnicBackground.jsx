@@ -7,14 +7,14 @@ export default function PicnicBackground() {
     <View style={StyleSheet.absoluteFill}>
       <Svg width="100%" height="100%">
         {/* Base yellow */}
-        <Rect width="100%" height="100%" fill="#ffeebb" />
+        <Rect width="100%" height="100%" fill="#FFD5D6" />
         {/* Horizontal stripes */}
         {Array.from({ length: 40 }).map((_, i) => (
           <Rect
             key={`h${i}`}
             x="0" y={i * 40}
             width="100%" height="20"
-            fill="rgba(255, 220, 124, 0.25)"
+            fill="rgba(255, 255, 255, 0.21)"
           />
         ))}
         {/* Vertical stripes */}
@@ -23,7 +23,7 @@ export default function PicnicBackground() {
             key={`v${i}`}
             x={i * 40} y="0"
             width="20" height="100%"
-            fill="rgba(237, 188, 25, 0.25)"
+            fill="hsla(0, 0.00%, 94.10%, 0.54)"
           />
         ))}
       </Svg>
