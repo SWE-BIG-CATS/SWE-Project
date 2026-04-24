@@ -149,6 +149,7 @@ function DraggableElement({
   isEditing,
   isSelected,
   textInteractionMode,
+  photoInteractionMode,
   onSelect,
   onMove,
   onAutoSize,
@@ -160,9 +161,11 @@ function DraggableElement({
   const latestPosition = useRef({ x: element.x, y: element.y });
   const latestSize = useRef({ width: element.width, height: element.height });
   const resizeStartWidth = useRef(element.width);
+  const resizeStartRatio = useRef(element.height / Math.max(element.width, 1));
   const isEditingRef = useRef(isEditing);
   const isSelectedRef = useRef(isSelected);
   const textModeRef = useRef(textInteractionMode);
+  const photoModeRef = useRef(photoInteractionMode);
   const onMoveRef = useRef(onMove);
   const markCanvasBusyRef = useRef(markCanvasBusy);
   const minTextWidth = 90;
@@ -189,6 +192,10 @@ function DraggableElement({
   }, [textInteractionMode]);
 
   useEffect(() => {
+    photoModeRef.current = photoInteractionMode;
+  }, [photoInteractionMode]);
+
+  useEffect(() => {
     onMoveRef.current = onMove;
   }, [onMove]);
 
@@ -200,13 +207,15 @@ function DraggableElement({
     PanResponder.create({
       onStartShouldSetPanResponder: () => {
         if (!isEditingRef.current) return false;
-        if (element.type !== 'text') return true;
-        return isSelectedRef.current && textModeRef.current === 'move';
+        if (element.type === 'text') return isSelectedRef.current && textModeRef.current === 'move';
+        if (element.type === 'photo') return isSelectedRef.current && photoModeRef.current === 'move';
+        return true;
       },
       onMoveShouldSetPanResponder: () => {
         if (!isEditingRef.current) return false;
-        if (element.type !== 'text') return true;
-        return isSelectedRef.current && textModeRef.current === 'move';
+        if (element.type === 'text') return isSelectedRef.current && textModeRef.current === 'move';
+        if (element.type === 'photo') return isSelectedRef.current && photoModeRef.current === 'move';
+        return true;
       },
       onPanResponderGrant: () => {
         markCanvasBusyRef.current();
@@ -232,17 +241,30 @@ function DraggableElement({
   const resizeResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () =>
-        isEditingRef.current && element.type === 'text' && isSelectedRef.current && textModeRef.current === 'resize',
+        isEditingRef.current &&
+        (element.type === 'text' || element.type === 'photo') &&
+        isSelectedRef.current &&
+        (element.type === 'text' ? textModeRef.current === 'resize' : photoModeRef.current === 'resize'),
       onMoveShouldSetPanResponder: () =>
-        isEditingRef.current && element.type === 'text' && isSelectedRef.current && textModeRef.current === 'resize',
+        isEditingRef.current &&
+        (element.type === 'text' || element.type === 'photo') &&
+        isSelectedRef.current &&
+        (element.type === 'text' ? textModeRef.current === 'resize' : photoModeRef.current === 'resize'),
       onPanResponderGrant: () => {
         markCanvasBusyRef.current();
         onDragStateChange(true);
         resizeStartWidth.current = latestSize.current.width;
+        resizeStartRatio.current = latestSize.current.height / Math.max(latestSize.current.width, 1);
       },
       onPanResponderMove: (_, gestureState) => {
-        const nextWidth = Math.max(minTextWidth, resizeStartWidth.current + gestureState.dx);
-        onMoveRef.current(element.id, { width: nextWidth });
+        if (element.type === 'photo') {
+          const nextWidth = Math.max(64, resizeStartWidth.current + gestureState.dx);
+          const nextHeight = Math.max(64, nextWidth * resizeStartRatio.current);
+          onMoveRef.current(element.id, { width: nextWidth, height: nextHeight });
+        } else {
+          const nextWidth = Math.max(minTextWidth, resizeStartWidth.current + gestureState.dx);
+          onMoveRef.current(element.id, { width: nextWidth });
+        }
       },
       onPanResponderRelease: () => {
         onDragStateChange(false);
@@ -278,14 +300,14 @@ function DraggableElement({
         disabled={!isEditing}
         onPressIn={markCanvasBusy}
         onPress={() => {
-          if (!isEditing || element.type !== 'text') return;
-          onSelect(element.id);
+          if (!isEditing) return;
+          onSelect(element.id, element.type);
         }}
         onLongPress={() => onLongPress(element)}
         delayLongPress={260}
       >
         {element.type === 'photo' ? (
-          <Image source={{ uri: element.content }} style={styles.canvasPhoto} />
+          <Image source={{ uri: element.content }} style={styles.canvasPhoto} resizeMode="cover" />
         ) : (
           <>
             <Text style={styles.canvasText}>{element.content}</Text>
@@ -304,7 +326,10 @@ function DraggableElement({
           </>
         )}
       </Pressable>
-      {isEditing && element.type === 'text' && isSelected && textInteractionMode === 'resize' ? (
+      {isEditing &&
+      (element.type === 'text' || element.type === 'photo') &&
+      isSelected &&
+      (element.type === 'text' ? textInteractionMode === 'resize' : photoInteractionMode === 'resize') ? (
         <View style={styles.textResizeTouchArea} {...resizeResponder.panHandlers}>
           <View style={styles.textResizeNotch}>
             <Ionicons name="resize-outline" size={16} color="#7e5c62" />
@@ -319,6 +344,16 @@ function DraggableElement({
       {isEditing && element.type === 'text' && isSelected && textInteractionMode === 'move' ? (
         <View style={styles.textMoveBadge}>
           <Text style={styles.textMoveBadgeText}>MOVE</Text>
+        </View>
+      ) : null}
+      {isEditing && element.type === 'photo' && isSelected && photoInteractionMode === 'move' ? (
+        <View style={styles.photoMoveBadge}>
+          <Text style={styles.photoMoveBadgeText}>MOVE</Text>
+        </View>
+      ) : null}
+      {isEditing && element.type === 'photo' && isSelected && photoInteractionMode === 'resize' ? (
+        <View style={styles.photoResizeBadge}>
+          <Text style={styles.photoResizeBadgeText}>RESIZE</Text>
         </View>
       ) : null}
     </View>
@@ -339,6 +374,8 @@ export default function ProjectsScreen() {
   const [selectedElement, setSelectedElement] = useState(null);
   const [selectedTextElementId, setSelectedTextElementId] = useState(null);
   const [selectedTextInteractionMode, setSelectedTextInteractionMode] = useState('static');
+  const [selectedPhotoElementId, setSelectedPhotoElementId] = useState(null);
+  const [selectedPhotoInteractionMode, setSelectedPhotoInteractionMode] = useState('static');
   const [elementMenuVisible, setElementMenuVisible] = useState(false);
   const [isDraggingElement, setIsDraggingElement] = useState(false);
   const [projectElements, setProjectElements] = useState(() =>
@@ -488,6 +525,8 @@ export default function ProjectsScreen() {
           if (canvasTapGuard.current) return;
           setSelectedTextElementId(null);
           setSelectedTextInteractionMode('static');
+          setSelectedPhotoElementId(null);
+          setSelectedPhotoInteractionMode('static');
         }}
         onLongPress={() => {
           if (!isEditingPage || canvasTapGuard.current) return;
@@ -502,12 +541,35 @@ export default function ProjectsScreen() {
             key={element.id}
             element={element}
             isEditing={isEditingPage}
-            isSelected={selectedTextElementId === element.id}
+            isSelected={selectedTextElementId === element.id || selectedPhotoElementId === element.id}
             textInteractionMode={selectedTextInteractionMode}
-            onSelect={(elementId) => {
+            photoInteractionMode={selectedPhotoInteractionMode}
+            onSelect={(elementId, elementType) => {
+              if (elementType === 'photo') {
+                if (selectedPhotoElementId !== elementId) {
+                  setSelectedPhotoElementId(elementId);
+                  setSelectedPhotoInteractionMode('move');
+                  setSelectedTextElementId(null);
+                  setSelectedTextInteractionMode('static');
+                  return;
+                }
+                if (selectedPhotoInteractionMode === 'move') {
+                  setSelectedPhotoInteractionMode('resize');
+                  return;
+                }
+                if (selectedPhotoInteractionMode === 'resize') {
+                  setSelectedPhotoInteractionMode('static');
+                  return;
+                }
+                setSelectedPhotoInteractionMode('move');
+                return;
+              }
+
               if (selectedTextElementId !== elementId) {
                 setSelectedTextElementId(elementId);
                 setSelectedTextInteractionMode('move');
+                setSelectedPhotoElementId(null);
+                setSelectedPhotoInteractionMode('static');
                 return;
               }
               if (selectedTextInteractionMode === 'move') {
@@ -607,6 +669,8 @@ export default function ProjectsScreen() {
                   setOpenProjectId(null);
                   setSelectedTextElementId(null);
                   setSelectedTextInteractionMode('static');
+                  setSelectedPhotoElementId(null);
+                  setSelectedPhotoInteractionMode('static');
                 }}
               >
                 <Text style={[styles.tabButtonText, active && styles.tabButtonTextActive]}>
@@ -995,6 +1059,40 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   textResizeBadgeText: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 12,
+    color: '#8d6036',
+    letterSpacing: 0.4,
+  },
+  photoMoveBadge: {
+    position: 'absolute',
+    top: -18,
+    left: 4,
+    backgroundColor: '#dff2e4',
+    borderColor: '#6fa37b',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  photoMoveBadgeText: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 12,
+    color: '#3b6f47',
+    letterSpacing: 0.4,
+  },
+  photoResizeBadge: {
+    position: 'absolute',
+    top: -18,
+    left: 52,
+    backgroundColor: '#f8e9dc',
+    borderColor: '#bc8e62',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  photoResizeBadgeText: {
     fontFamily: 'Gaegu-Bold',
     fontSize: 12,
     color: '#8d6036',
