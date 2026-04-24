@@ -692,11 +692,25 @@ export async function deleteGroupMessage({ messageId }) {
 
 export async function leaveGroup({ groupId, userId }) {
   if (!supabase || !groupId || !userId) throw new Error('Missing leave group data.');
+
+  const { data: group, error: groupError } = await supabase
+      .from('groups')
+      .select('owner_id')
+      .eq('group_id', groupId)
+      .single();
+
+  if (groupError) throw groupError;
+
+  if (group?.owner_id === userId) {
+    throw new Error('The group owner cannot leave unless ownership is transferred first.');
+  }
+
   const { error } = await supabase
-    .from('group_members')
-    .delete()
-    .eq('group_id', groupId)
-    .eq('user_id', userId);
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', userId);
+
   if (error) throw error;
   return true;
 }
