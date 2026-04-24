@@ -3,6 +3,7 @@ import { Image, Keyboard, Modal, PanResponder, Pressable, ScrollView, StyleSheet
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 
 const TABS = ['projects', 'inspirations', 'lists'];
 
@@ -310,6 +311,11 @@ function DraggableElement({
           </View>
         </View>
       ) : null}
+      {isEditing && element.type === 'text' && isSelected && textInteractionMode === 'resize' ? (
+        <View style={styles.textResizeBadge}>
+          <Text style={styles.textResizeBadgeText}>RESIZE</Text>
+        </View>
+      ) : null}
       {isEditing && element.type === 'text' && isSelected && textInteractionMode === 'move' ? (
         <View style={styles.textMoveBadge}>
           <Text style={styles.textMoveBadgeText}>MOVE</Text>
@@ -329,7 +335,7 @@ export default function ProjectsScreen() {
   const [composerMode, setComposerMode] = useState('add');
   const [composerType, setComposerType] = useState(null);
   const [draftText, setDraftText] = useState('');
-  const [draftPhotoUrl, setDraftPhotoUrl] = useState('');
+  const [draftPhotoUri, setDraftPhotoUri] = useState('');
   const [selectedElement, setSelectedElement] = useState(null);
   const [selectedTextElementId, setSelectedTextElementId] = useState(null);
   const [selectedTextInteractionMode, setSelectedTextInteractionMode] = useState('static');
@@ -365,8 +371,23 @@ export default function ProjectsScreen() {
     setComposerType(type);
     setSelectedElement(sourceElement);
     setDraftText(type === 'text' ? sourceElement?.content || '' : '');
-    setDraftPhotoUrl(type === 'photo' ? sourceElement?.content || '' : '');
+    setDraftPhotoUri(type === 'photo' ? sourceElement?.content || '' : '');
     setComposerVisible(true);
+  };
+
+  const pickPhotoFromLibrary = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.9,
+    });
+
+    if (!result.canceled && result.assets?.length) {
+      setDraftPhotoUri(result.assets[0].uri);
+    }
   };
 
   const updateOpenProjectElement = (elementId, patch) => {
@@ -399,7 +420,7 @@ export default function ProjectsScreen() {
         content:
           composerType === 'text'
             ? draftText.trim() || selectedElement.content
-            : draftPhotoUrl.trim() || selectedElement.content,
+            : draftPhotoUri.trim() || selectedElement.content,
       });
       setComposerVisible(false);
       return;
@@ -411,7 +432,7 @@ export default function ProjectsScreen() {
       content:
         composerType === 'text'
           ? draftText.trim() || 'New note'
-          : draftPhotoUrl.trim() ||
+          : draftPhotoUri.trim() ||
             'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=700&q=80',
       x: 24,
       y: 90 + (openProjectElements.length % 4) * 62,
@@ -452,6 +473,11 @@ export default function ProjectsScreen() {
           </Pressable>
         </View>
       </View>
+      {isEditingPage ? (
+        <Text style={styles.editHintText}>
+          Press and hold to add elements.{'\n'}Tap text to move and resize.
+        </Text>
+      ) : null}
 
       <Text style={styles.lastEditedText}>last edited {formatLastEdited(openProject?.lastEditedAt || Date.now())}</Text>
 
@@ -628,7 +654,7 @@ export default function ProjectsScreen() {
       <Modal
         visible={composerVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => {
           Keyboard.dismiss();
           setComposerVisible(false);
@@ -662,15 +688,12 @@ export default function ProjectsScreen() {
                 onSubmitEditing={Keyboard.dismiss}
               />
             ) : (
-              <TextInput
-                style={styles.composerInput}
-                placeholder="Paste photo URL..."
-                placeholderTextColor="#9e8888"
-                value={draftPhotoUrl}
-                onChangeText={setDraftPhotoUrl}
-                returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
-              />
+              <View style={styles.photoPickerWrap}>
+                <Pressable style={styles.photoChoiceButton} onPress={pickPhotoFromLibrary}>
+                  <Text style={styles.photoChoiceText}>{draftPhotoUri ? 'Choose different photo' : 'Choose from album'}</Text>
+                </Pressable>
+                {draftPhotoUri ? <Image source={{ uri: draftPhotoUri }} style={styles.photoPreview} /> : null}
+              </View>
             )}
 
             <View style={styles.composerActions}>
@@ -680,6 +703,7 @@ export default function ProjectsScreen() {
                   Keyboard.dismiss();
                   setComposerVisible(false);
                   setComposerType(null);
+                  setDraftPhotoUri('');
                 }}
               >
                 <Text style={styles.composerCancelText}>Cancel</Text>
@@ -690,6 +714,7 @@ export default function ProjectsScreen() {
                   Keyboard.dismiss();
                   handleSaveComposer();
                   setComposerType(null);
+                  setDraftPhotoUri('');
                 }}
               >
                 <Text style={styles.composerSaveText}>Save</Text>
@@ -837,6 +862,14 @@ const styles = StyleSheet.create({
     color: '#5f464a',
     fontSize: 18,
   },
+  editHintText: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 16,
+    lineHeight: 20,
+    color: '#6e595d',
+    marginTop: -2,
+    marginBottom: 2,
+  },
   openProjectCover: {
     width: '100%',
     height: 170,
@@ -948,6 +981,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Gaegu-Bold',
     fontSize: 12,
     color: '#3b6f47',
+    letterSpacing: 0.4,
+  },
+  textResizeBadge: {
+    position: 'absolute',
+    top: -18,
+    left: 52,
+    backgroundColor: '#f8e9dc',
+    borderColor: '#bc8e62',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  textResizeBadgeText: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 12,
+    color: '#8d6036',
     letterSpacing: 0.4,
   },
   folderList: {
@@ -1109,6 +1159,33 @@ const styles = StyleSheet.create({
   composerChoiceRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  photoPickerWrap: {
+    gap: 8,
+    alignItems: 'stretch',
+  },
+  photoChoiceButton: {
+    borderWidth: 1,
+    borderColor: '#d3b9be',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoChoiceText: {
+    fontFamily: 'Gaegu-Bold',
+    color: '#5f484c',
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  photoPreview: {
+    width: '100%',
+    height: 140,
+    borderRadius: 8,
+    backgroundColor: '#ddd',
+    overflow: 'hidden',
   },
   choiceButton: {
     flex: 1,
