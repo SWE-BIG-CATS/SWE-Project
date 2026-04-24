@@ -11,7 +11,7 @@ export default function PicnicBackground() {
     <View style={StyleSheet.absoluteFill}>
       <Svg width="100%" height="100%">
         {/* Base yellow */}
-        <Rect width="100%" height="100%" fill="#FFD5D6" />
+        <Rect width="100%" height="100%" fill="#f7d5d0" />
         {/* Horizontal stripes */}
         {Array.from({ length: horizontalStripeCount }).map((_, i) => (
           <Rect

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
 import PicnicBackground from '../components/PicnicBackground';
+import { Image } from 'react-native'; 
 
 export default function LoginScreen() {
   const [identifier, setIdentifier] = useState('');
@@ -76,7 +77,13 @@ export default function LoginScreen() {
 
         <View style={styles.container}>
           <View style={styles.loginSection}>
-            <Text style={styles.title}>LOGIN</Text>
+            <Image
+              source={require('../assets/images/mycraft_logo.png')} // update path to your logo file
+              style={styles.logo}
+              resizeMode="contain"
+            />
+
+            {/* <Text style={styles.title}>LOGIN</Text> */}
 
             <TextInput
                 value={identifier}
@@ -136,6 +143,11 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
+  logo: {
+    width: 160,
+    height: 160,
+    marginBottom: 12,
+  },
   container: {
     flex: 1,
     alignItems: 'center',
@@ -154,10 +166,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'Gaegu',
-    fontSize: 52,
-    color: '#1a1a1a',
-    letterSpacing: 3,
-    marginBottom: 18,
+    fontSize: 22,
+    color: '#3f3232',
+    letterSpacing: 1,
+    marginBottom: 10,
+    alignSelf: 'flex-start',
   },
   input: {
     width: '100%',
