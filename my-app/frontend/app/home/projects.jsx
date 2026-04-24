@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, TextInput, View, Text } from 'react-native';
+import { Image, Keyboard, Modal, PanResponder, Pressable, ScrollView, StyleSheet, TextInput, View, Text } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -143,20 +143,49 @@ function formatLastEdited(lastEditedAt) {
   return `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
 }
 
-function DraggableElement({ element, isEditing, onMove, onLongPress, markCanvasBusy, onDragStateChange }) {
+function DraggableElement({
+  element,
+  isEditing,
+  isSelected,
+  textInteractionMode,
+  onSelect,
+  onMove,
+  onAutoSize,
+  onLongPress,
+  markCanvasBusy,
+  onDragStateChange,
+}) {
   const dragStart = useRef({ x: element.x, y: element.y });
   const latestPosition = useRef({ x: element.x, y: element.y });
+  const latestSize = useRef({ width: element.width, height: element.height });
+  const resizeStartWidth = useRef(element.width);
   const isEditingRef = useRef(isEditing);
+  const isSelectedRef = useRef(isSelected);
+  const textModeRef = useRef(textInteractionMode);
   const onMoveRef = useRef(onMove);
   const markCanvasBusyRef = useRef(markCanvasBusy);
+  const minTextWidth = 90;
+  const minTextHeight = 34;
 
   useEffect(() => {
     latestPosition.current = { x: element.x, y: element.y };
   }, [element.x, element.y]);
 
   useEffect(() => {
+    latestSize.current = { width: element.width, height: element.height };
+  }, [element.width, element.height]);
+
+  useEffect(() => {
     isEditingRef.current = isEditing;
   }, [isEditing]);
+
+  useEffect(() => {
+    isSelectedRef.current = isSelected;
+  }, [isSelected]);
+
+  useEffect(() => {
+    textModeRef.current = textInteractionMode;
+  }, [textInteractionMode]);
 
   useEffect(() => {
     onMoveRef.current = onMove;
@@ -168,8 +197,16 @@ function DraggableElement({ element, isEditing, onMove, onLongPress, markCanvasB
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => isEditingRef.current,
-      onMoveShouldSetPanResponder: () => isEditingRef.current,
+      onStartShouldSetPanResponder: () => {
+        if (!isEditingRef.current) return false;
+        if (element.type !== 'text') return true;
+        return isSelectedRef.current && textModeRef.current === 'move';
+      },
+      onMoveShouldSetPanResponder: () => {
+        if (!isEditingRef.current) return false;
+        if (element.type !== 'text') return true;
+        return isSelectedRef.current && textModeRef.current === 'move';
+      },
       onPanResponderGrant: () => {
         markCanvasBusyRef.current();
         onDragStateChange(true);
@@ -191,6 +228,30 @@ function DraggableElement({ element, isEditing, onMove, onLongPress, markCanvasB
     })
   ).current;
 
+  const resizeResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () =>
+        isEditingRef.current && element.type === 'text' && isSelectedRef.current && textModeRef.current === 'resize',
+      onMoveShouldSetPanResponder: () =>
+        isEditingRef.current && element.type === 'text' && isSelectedRef.current && textModeRef.current === 'resize',
+      onPanResponderGrant: () => {
+        markCanvasBusyRef.current();
+        onDragStateChange(true);
+        resizeStartWidth.current = latestSize.current.width;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const nextWidth = Math.max(minTextWidth, resizeStartWidth.current + gestureState.dx);
+        onMoveRef.current(element.id, { width: nextWidth });
+      },
+      onPanResponderRelease: () => {
+        onDragStateChange(false);
+      },
+      onPanResponderTerminate: () => {
+        onDragStateChange(false);
+      },
+    })
+  ).current;
+
   return (
     <View
       style={[
@@ -200,7 +261,13 @@ function DraggableElement({ element, isEditing, onMove, onLongPress, markCanvasB
           top: element.y,
           width: element.width,
           height: element.height,
-          borderColor: isEditing ? '#c8a8ad' : 'transparent',
+          borderColor:
+            isEditing && element.type === 'text' && isSelected && textInteractionMode === 'move'
+              ? '#6fa37b'
+              : isEditing
+                ? '#c8a8ad'
+                : 'transparent',
+          borderWidth: isEditing && element.type === 'text' && isSelected && textInteractionMode === 'move' ? 2 : 1,
         },
       ]}
       {...panResponder.panHandlers}
@@ -209,15 +276,51 @@ function DraggableElement({ element, isEditing, onMove, onLongPress, markCanvasB
         style={styles.canvasItemPressable}
         disabled={!isEditing}
         onPressIn={markCanvasBusy}
+        onPress={() => {
+          if (!isEditing || element.type !== 'text') return;
+          onSelect(element.id);
+        }}
         onLongPress={() => onLongPress(element)}
         delayLongPress={260}
       >
         {element.type === 'photo' ? (
           <Image source={{ uri: element.content }} style={styles.canvasPhoto} />
         ) : (
-          <Text style={styles.canvasText}>{element.content}</Text>
+          <Text
+            style={styles.canvasText}
+            onTextLayout={(event) => {
+              const lineCount = event?.nativeEvent?.lines?.length || 1;
+              const lineWidths = (event?.nativeEvent?.lines || []).map((line) => line.width || 0);
+              const maxLineWidth = lineWidths.length ? Math.max(...lineWidths) : 0;
+              const targetHeight = Math.max(minTextHeight, lineCount * styles.canvasText.lineHeight + 8);
+              let targetWidth = Math.max(minTextWidth, Math.ceil(maxLineWidth) + 14);
+
+              if (lineCount > 1 && element.width < 340) {
+                targetWidth = Math.max(targetWidth, element.width + 18);
+              }
+
+              onAutoSize(element.id, {
+                width: Math.min(360, targetWidth),
+                height: targetHeight,
+              });
+            }}
+          >
+            {element.content}
+          </Text>
         )}
       </Pressable>
+      {isEditing && element.type === 'text' && isSelected && textInteractionMode === 'resize' ? (
+        <View style={styles.textResizeTouchArea} {...resizeResponder.panHandlers}>
+          <View style={styles.textResizeNotch}>
+            <Ionicons name="resize-outline" size={16} color="#7e5c62" />
+          </View>
+        </View>
+      ) : null}
+      {isEditing && element.type === 'text' && isSelected && textInteractionMode === 'move' ? (
+        <View style={styles.textMoveBadge}>
+          <Text style={styles.textMoveBadgeText}>MOVE</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -234,6 +337,8 @@ export default function ProjectsScreen() {
   const [draftText, setDraftText] = useState('');
   const [draftPhotoUrl, setDraftPhotoUrl] = useState('');
   const [selectedElement, setSelectedElement] = useState(null);
+  const [selectedTextElementId, setSelectedTextElementId] = useState(null);
+  const [selectedTextInteractionMode, setSelectedTextInteractionMode] = useState('static');
   const [elementMenuVisible, setElementMenuVisible] = useState(false);
   const [isDraggingElement, setIsDraggingElement] = useState(false);
   const [projectElements, setProjectElements] = useState(() =>
@@ -275,6 +380,20 @@ export default function ProjectsScreen() {
     setProjectElements((prev) => ({
       ...prev,
       [openProjectId]: (prev[openProjectId] || []).map((el) => (el.id === elementId ? { ...el, ...patch } : el)),
+    }));
+  };
+
+  const updateTextElementSize = (elementId, nextSize) => {
+    if (!openProjectId) return;
+    setProjectElements((prev) => ({
+      ...prev,
+      [openProjectId]: (prev[openProjectId] || []).map((el) => {
+        if (el.id !== elementId || el.type !== 'text') return el;
+        const nextWidth = nextSize?.width ?? el.width;
+        const nextHeight = nextSize?.height ?? el.height;
+        if (Math.abs((el.height || 0) - nextHeight) < 1 && Math.abs((el.width || 0) - nextWidth) < 1) return el;
+        return { ...el, width: nextWidth, height: nextHeight };
+      }),
     }));
   };
 
@@ -344,6 +463,12 @@ export default function ProjectsScreen() {
 
       <Pressable
         style={styles.freeCanvas}
+        onPress={() => {
+          if (!isEditingPage) return;
+          if (canvasTapGuard.current) return;
+          setSelectedTextElementId(null);
+          setSelectedTextInteractionMode('static');
+        }}
         onLongPress={() => {
           if (!isEditingPage || canvasTapGuard.current) return;
           setComposerMode('add');
@@ -357,8 +482,27 @@ export default function ProjectsScreen() {
             key={element.id}
             element={element}
             isEditing={isEditingPage}
+            isSelected={selectedTextElementId === element.id}
+            textInteractionMode={selectedTextInteractionMode}
+            onSelect={(elementId) => {
+              if (selectedTextElementId !== elementId) {
+                setSelectedTextElementId(elementId);
+                setSelectedTextInteractionMode('move');
+                return;
+              }
+              if (selectedTextInteractionMode === 'move') {
+                setSelectedTextInteractionMode('resize');
+                return;
+              }
+              if (selectedTextInteractionMode === 'resize') {
+                setSelectedTextInteractionMode('static');
+                return;
+              }
+              setSelectedTextInteractionMode('move');
+            }}
             markCanvasBusy={markCanvasBusy}
             onMove={(elementId, nextPosition) => updateOpenProjectElement(elementId, nextPosition)}
+            onAutoSize={(elementId, nextSize) => updateTextElementSize(elementId, nextSize)}
             onLongPress={(nextSelected) => {
               if (!isEditingPage) return;
               setSelectedElement(nextSelected);
@@ -441,6 +585,8 @@ export default function ProjectsScreen() {
                   setActiveTab(tab);
                   setOpenFolderId(null);
                   setOpenProjectId(null);
+                  setSelectedTextElementId(null);
+                  setSelectedTextInteractionMode('static');
                 }}
               >
                 <Text style={[styles.tabButtonText, active && styles.tabButtonTextActive]}>
@@ -485,9 +631,17 @@ export default function ProjectsScreen() {
         </Pressable>
       </Modal>
 
-      <Modal visible={composerVisible} transparent animationType="slide" onRequestClose={() => setComposerVisible(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.composerCard}>
+      <Modal
+        visible={composerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setComposerVisible(false);
+        }}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={Keyboard.dismiss}>
+          <Pressable style={styles.composerCard} onPress={() => {}}>
             <Text style={styles.composerTitle}>
               {composerMode === 'edit' ? 'Edit element' : composerType ? `Add ${composerType}` : 'Add to page'}
             </Text>
@@ -509,6 +663,9 @@ export default function ProjectsScreen() {
                 value={draftText}
                 onChangeText={setDraftText}
                 multiline
+                blurOnSubmit
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
               />
             ) : (
               <TextInput
@@ -517,6 +674,8 @@ export default function ProjectsScreen() {
                 placeholderTextColor="#9e8888"
                 value={draftPhotoUrl}
                 onChangeText={setDraftPhotoUrl}
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
               />
             )}
 
@@ -524,6 +683,7 @@ export default function ProjectsScreen() {
               <Pressable
                 style={styles.composerCancel}
                 onPress={() => {
+                  Keyboard.dismiss();
                   setComposerVisible(false);
                   setComposerType(null);
                 }}
@@ -533,6 +693,7 @@ export default function ProjectsScreen() {
               <Pressable
                 style={styles.composerSave}
                 onPress={() => {
+                  Keyboard.dismiss();
                   handleSaveComposer();
                   setComposerType(null);
                 }}
@@ -540,8 +701,8 @@ export default function ProjectsScreen() {
                 <Text style={styles.composerSaveText}>Save</Text>
               </Pressable>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -709,12 +870,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderWidth: 1,
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: 'visible',
     backgroundColor: 'transparent',
   },
   canvasItemPressable: {
     width: '100%',
     height: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   canvasPhoto: {
     width: '100%',
@@ -726,6 +889,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2f2225',
     lineHeight: 20,
+    width: '100%',
+    flexWrap: 'wrap',
+  },
+  textResizeTouchArea: {
+    position: 'absolute',
+    right: -18,
+    bottom: -18,
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+  },
+  textResizeNotch: {
+    position: 'absolute',
+    right: 9,
+    bottom: 9,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f7e7ea',
+    borderWidth: 2,
+    borderColor: '#c8a6ad',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  textMoveBadge: {
+    position: 'absolute',
+    top: -18,
+    left: 4,
+    backgroundColor: '#dff2e4',
+    borderColor: '#6fa37b',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  textMoveBadgeText: {
+    fontFamily: 'Gaegu-Bold',
+    fontSize: 12,
+    color: '#3b6f47',
+    letterSpacing: 0.4,
   },
   folderList: {
     gap: 8,
