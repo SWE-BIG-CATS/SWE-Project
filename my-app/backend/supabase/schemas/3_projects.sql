@@ -26,3 +26,14 @@ create table "project_tags" (
     foreign key ("project_id") references "projects" ("project_id") on delete cascade, --when a project is deleted, its tags will also be deleted
     foreign key ("tag_id") references "tags" ("tag_id") on delete cascade --when a tag is deleted, its associations with projects will also be deleted
 );
+
+create table "my_project_data" (
+    "project_id" uuid not null, --references projects.project_id
+    "owner_id" uuid not null, --owner/user for row-level access
+    "payload" jsonb not null default '{}'::jsonb, --serialized project state (folders + canvas elements + metadata)
+    "created_at" timestamp with time zone not null default now(),
+    "updated_at" timestamp with time zone not null default now(),
+    primary key ("project_id"),
+    foreign key ("project_id") references "projects" ("project_id") on delete cascade,
+    foreign key ("owner_id") references "users" ("user_id") on delete cascade
+);
