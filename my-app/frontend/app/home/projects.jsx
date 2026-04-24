@@ -260,7 +260,7 @@ function DraggableElement({
 export default function ProjectsScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('projects');
-  const [openProjectId, setOpenProjectId] = useState(EXAMPLE_PROJECT_ID);
+  const [openProjectId, setOpenProjectId] = useState(null);
   const [openFolderId, setOpenFolderId] = useState(null);
   const [isEditingPage, setIsEditingPage] = useState(false);
   const [composerVisible, setComposerVisible] = useState(false);
