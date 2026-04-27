@@ -168,8 +168,28 @@ The only API Keys our platform uses are from Supabase, and the relevant ones hav
 
 -------------------------------------------------
 
-**New accounts can be made by running the platform, but we also have an alternative test account:**
-
-```Email: lilly@test.com```
-
-```Password (case-sensitive): 123456```
+**New accounts can be made by running the platform, but we also have alternative test accounts:**
+<table>
+  <thead>
+    <tr>
+      <th align="left">Account</th>
+      <th align="left">Email</th>
+      <th align="left">Username</th>
+      <th align="left">Password (case-sensitive)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>lilly</td>
+      <td>lilly@test.com</td>
+      <td>lillyliu</td>
+      <td>123456</td>
+    </tr>
+    <tr>
+      <td>bibby</td>
+      <td>bibbybiu@test.com</td>
+      <td>bibby</td>
+      <td>123456</td>
+    </tr>
+  </tbody>
+</table>
